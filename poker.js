@@ -153,22 +153,20 @@ function compareHands(hand1, hand2) {
     console.log('best hand 2 is ' + bestHand2)
 
     if (rankHand1 > rankHand2) {
-        return "Hand 1 wins";
+        return "Hand 1 wins with rank " + rankHand1;
     } else if (rankHand2 > rankHand1) {
-        return "Hand 2 wins";
+        return "Hand 2 wins with rank " + rankHand2;
     } else {
 
         // If hands have the same rank, compare the highest cards
         let ranks1 = getCardRanks(bestHand1).sort((a, b) => b - a);
         let ranks2 = getCardRanks(bestHand2).sort((a, b) => b - a);
-        console.log("ranks 1 is " + ranks1)
-        console.log("ranks 2 is " + ranks2)
 
         for (let i = 0; i < ranks1.length; i++) {
             if (ranks1[i] > ranks2[i]) {
-                return "Hand 1 wins";
+                return "Hand 1 wins with rank " + rankHand1;
             } else if (ranks2[i] > ranks1[i]) {
-                return "Hand 2 wins";
+                return "Hand 2 wins with rank " + rankHand2;
             }
         }
 
@@ -180,15 +178,44 @@ function compareHands(hand1, hand2) {
 // let hand1 = ['6c', 'Qc', 'Kc', '2c', '5c', '9c'];
 // let hand2 = ['Ac', 'Qc', '4c', '8c', '3c', '9c'];
 
-let hand1 = ['6c', '6d', '6h', '6s', '5c', '9c'];
-let hand2 = ['7c', '7d', '7s', 'Kc', 'Kd', '9c'];
+// let hand1 = ['6c', '6d', '6h', '6s', '5c', '9c'];
+// let hand2 = ['7c', '7d', '7s', 'Kc', 'Kd', '9c'];
 
-console.log(compareHands(hand1, hand2)); // Should output "It's a tie"
+// console.log(compareHands(hand1, hand2)); // Should output "It's a tie"
 
 // Example usage
 //2H QC 4D 2C 8C 9C TC
-let testCards = ['Ac', 'Qc', '4c', '2c', '8c', '9c', 'Tc'];
-let bestHand = getBestPokerHand(testCards)[0];
-let bestHandRank = getBestPokerHand(testCards)[1]
-console.log('Best hand:', bestHand);
-console.log('Best hand rank:', bestHandRank);
+// let testCards = ['Ac', 'Qc', '4c', '2c', '8c', '9c', 'Tc'];
+// let bestHand = getBestPokerHand(testCards)[0];
+// let bestHandRank = getBestPokerHand(testCards)[1]
+// console.log('Best hand:', bestHand);
+// console.log('Best hand rank:', bestHandRank);
+
+function shuffle(cards) {
+    for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+    }
+    return cards
+}
+
+function createDeckAndShuffle() {
+    let fullDeck = [];
+    let ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+    let suits = ['h', 'c', 'd', 's']; // Hearts, Clubs, Diamonds, Spades
+
+    suits.forEach(suit => {
+        ranks.forEach(rank => {
+            fullDeck.push(rank + suit);
+        });
+    });
+
+    fullDeck = shuffle(fullDeck)
+    let hand1 = fullDeck.splice(0, 7)
+    let hand2 = fullDeck.splice(0, 7)
+
+    return [hand1, hand2]
+}
+
+let exampleHandArray = createDeckAndShuffle()
+console.log(compareHands(exampleHandArray[0], exampleHandArray[1]))
