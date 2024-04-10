@@ -1,0 +1,62 @@
+#tableDiv {
+    width: 80vw;
+    height: 60vh;
+    background-color: green;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.playerDiv {
+    width: 15vw;
+    height: 15vh;
+    position: absolute;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.playerTopRowDiv, .playerCardsDiv {
+    display: flex;
+    width: 14vw;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
+
+
+.cardDiv {
+    width: calc(15vw / 3);
+    height: 8vh;
+    background-color: white;
+    border: 1px solid #000;
+    display: inline-block;
+    margin-left: 0.2vw;
+}
+
+.dealer {
+    background-color: grey;
+}
+
+.raise {
+    background-color: rgba(42, 213, 42, 0.892);
+}
+
+.fold {
+    background-color: rgba(213, 42, 42, 0.892);
+}
+
+.call {
+    background-color: rgba(213, 190, 42, 0.892);
+}
+
+.not-visible {
+    background-color: brown;
+}
