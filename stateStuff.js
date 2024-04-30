@@ -3,8 +3,10 @@ state = {
     playerMoney: 1000,
     playerHand: [],
     
-    currentBet: 10,
-    currentPotSize: 0,
+    currentBet: 0,
+    currentPot: 0,
+    currentDealer: 3,
+    currentPlayer: 0,
 
     currentDeck: [],
     currentScreen: "chooseVisibleCard",
@@ -19,12 +21,14 @@ function Player(nameString, seatNumber) {
     this.leftCardVisible = false;
     this.rightCardVisible = false;
     this.currentSeat = seatNumber;
-    this.currentMoney = 1000; // Arbitrary starting amount
+    this.stackSize = 1000; // Arbitrary starting amount
     this.isStillInHand = true;
     this.currentMove = false;
+    this.currentBet = 0;
 
-    this.callwithJunkPreFlopPercentage = Math.random() * 0.8;
-    this.callRaiseWithRFI = Math.random
+    this.callwithJunkPreFlopPercentage = Math.random() * 0.4;
+    this.trapPercentage = Math.random() * 0.4
+    this.callRaiseWithRFI = Math.random()
   }
   
   // Create 5 AI players

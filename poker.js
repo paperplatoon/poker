@@ -191,12 +191,10 @@ function compareHands(hand1, hand2) {
     let resultsHand1 = getBestPokerHand(hand1)
     let rankHand1 = resultsHand1[1]
     let bestHand1 = resultsHand1[0]
-    console.log('best hand 1 is ' + bestHand1)
 
     let resultsHand2 = getBestPokerHand(hand2)
     let rankHand2 = resultsHand2[1]
     let bestHand2 = resultsHand2[0]
-    console.log('best hand 2 is ' + bestHand2)
 
     if (rankHand1 > rankHand2) {
         return "Hand 1 wins with rank " + rankHand1;
@@ -287,42 +285,101 @@ function arraysAreEqual(arr1, arr2) {
     return true;
 }
 
-function preFlopAction() {
-    let currentBet = 10 
-    state.players.forEach(async player => {
-        if (player.name !== "player") {
-            
-            let willBluff = (Math.random() < player.callwithJunkPreFlopPercentage) ? true : false
-
-            if (currentBet === 10) {
-                if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
-                    player.currentMove = "Raise"
-                    currentBet *= 3;
-                    console.log(player.name + " raises to " + currentBet)
-                } else if (willBluff) {
-                    console.log(player.name + " calls  " + currentBet + " as a bluff")
-                    player.currentMove = "Call"
-                } else {
-                    console.log(player.name + " folds to a bet of   " + currentBet)
-                    player.currentMove = "Fold"
-                }
-            } else if (currentBet < 40) {
-                if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
-                    player.currentMove = "Call"
-                    console.log(player.name + " calls the raise and puts in " + currentBet)
-                } else if (willBluff) {
-                    console.log(player.name + " calls  " + currentBet + " as a bluff")
-                    player.currentMove = "Call"
-                } else {
-                    console.log(player.name + " folds to a bet of " + currentBet)
-                    player.currentMove = "Fold"
-                }
-            }
-            
-        }   
-    })
+function putInBet(playerIndex, betSize) {
+    let moneyToPut = (state.players[playerIndex].stackSize >= betSize) ? betSize : state.players[playerIndex].stackSize;
+    state.currentBet = betSize;
+    state.currentPot += moneyToPut;
+    state.players[playerIndex].stackSize -= moneyToPut;
+    state.players[playerIndex].currentBet = moneyToPut
+    return moneyToPut;
 }
 
+function putOutBlinds() {
+    console.log(state.players)
+    let SBIndex = (state.currentDealer < 5) ? state.currentDealer+1 : 0
+    let BBIndex = (state.currentDealer < 4) ? state.currentDealer+2 : (state.currentDealer  - 4)
+    state.currentPlayer = (BBIndex < 5) ? BBIndex+1 : 0
+
+    smallBlind = putInBet(SBIndex, 1)
+    bigBlind = putInBet(BBIndex, 3)
+
+}
+
+function preFlopAction() { 
+    const playerIndex = state.players.findIndex(player => player.name === "player");
+    let firstIndex = state.currentPlayer
+    let lastIndex = (firstIndex < playerIndex) ? (playerIndex-firstIndex) : (5-firstIndex+1+playerIndex)
+    lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
+    console.log("lastindex is " + lastIndex)
+
+    let playerInd = firstIndex
+    for (let i=0; i < lastIndex; i++) {
+        player = state.players[playerInd];
+        if (player.name === "player") {
+            console.log("reached player")
+            return true
+        } else {
+            //if no raise yet
+            const callThreshold = player.callwithJunkPreFlopPercentage
+            const willCall = Math.random() < player.callwithJunkPreFlopPercentage
+            if (state.currentBet === 3) {
+                if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
+                    player.currentMove = "Raise"
+                    putInBet(playerInd, state.currentBet*4)
+                    console.log(player.name + "raises to " + state.currentBet)
+                } else if (isHandInRange(player.currentHand, looseSmallBlindRaiseRange)) {
+                    player.currentMove = "Call"
+                    putInBet(playerInd, state.currentBet)
+                    console.log(player.name + " calls " + state.currentBet + " loosely")
+                } else {
+                    if (willCall < callThreshold) {
+                        player.currentMove = "Call"
+                        putInBet(playerInd, state.currentBet)
+                        console.log(player.name + " calls " + state.currentBet + " as a bluff")
+                    } else {
+                        player.currentMove = "Fold"
+                        player.isStillInHand = false
+                        console.log(player.name + " folds")
+                    }
+                }
+            } else if (state.currentBet < 25) {
+                if (isHandInRange(player.currentHand, fourBetRange)) {
+                    console.log(player.name + "raises to " + state.currentBet)
+                    player.currentMove = "Raise"
+                    putInBet(playerInd, state.currentBet*4)
+                } else if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
+                    player.currentMove = "Call"
+                    putInBet(playerInd, state.currentBet)
+                    console.log(player.name + " calls " + state.currentBet + " loosely")
+                } else if ((willCall*2) < callThreshold) {
+                    player.currentMove = "Call"
+                    putInBet(playerInd, state.currentBet)
+                    console.log(player.name + " calls " + state.currentBet + " as a bluff")
+                } else {
+                    player.currentMove = "Fold"
+                    player.isStillInHand = false
+                    console.log(player.name + " folds")
+                }
+            } else {
+                if (isHandInRange(player.currentHand, fourBetRange)) {
+                    console.log(player.name + "raises to " + state.currentBet)
+                    player.currentMove = "Raise"
+                    putInBet(playerInd, state.currentBet*4)
+                } else if ((isHandInRange(player.currentHand, raiseFirstIn[0]))) {
+                    player.currentMove = "Call"
+                    putInBet(playerInd, state.currentBet)
+                    console.log(player.name + " calls " + state.currentBet + " loosely")
+                } else {
+                    player.currentMove = "Fold"
+                    player.isStillInHand = false
+                    console.log(player.name + " folds")
+                }
+            }
+        }
+        playerInd = (playerInd === 5) ? 0 : playerInd+1
+        console.log("increased player index to " + playerInd)
+    }
+}
 
 
 function createPokerTable() {
@@ -362,8 +419,17 @@ function createPokerTable() {
         playerMoneyDiv.classList.add('playerSeatDiv');
         playerMoneyDiv.textContent = player.currentMoney
 
-
         playerTopRowDiv.append(playerNameDiv, playerSeatDiv, playerMoneyDiv)
+
+        const playerBottomRowDiv = document.createElement('div');
+        playerBottomRowDiv.classList.add('playerTopRowDiv');
+        
+        const playerStackDiv = document.createElement('div');
+        playerStackDiv.classList.add('playerNameDiv');
+        playerStackDiv.textContent = player.stackSize
+        const playerMoveDiv = document.createElement('div');
+        playerMoveDiv.classList.add('playerNameDiv');
+        playerStackDiv.textContent = player.stackSize
 
         tableDiv.appendChild(playerDiv);
 
@@ -435,7 +501,6 @@ function chooseHoleCardToBeVisiblePokerTable() {
         const playerActionTextDiv = document.createElement('div');
         playerActionTextDiv.classList.add('playerActionTextDiv');
         playerActionTextDiv.textContent = player.currentMove
-
         playerActionDiv.append(playerActionTextDiv)
 
         playerTopRowDiv.append(playerSeatDiv, playerNameDiv, playerMoneyDiv)
@@ -473,10 +538,20 @@ function chooseHoleCardToBeVisiblePokerTable() {
             }
             playerCardsDiv.appendChild(cardDiv);
         }
-        playerDiv.append(playerTopRowDiv, playerCardsDiv)
-        if (player.name !== "player") {
-            playerDiv.append(playerActionDiv)
-        }
+
+        const playerBottomRowDiv = document.createElement('div');
+        playerBottomRowDiv.classList.add('playerTopRowDiv');
+        
+        const playerStackDiv = document.createElement('div');
+        playerStackDiv.classList.add('playerNameDiv');
+        playerStackDiv.textContent = player.stackSize
+        const playerBetDiv = document.createElement('div');
+        playerBetDiv.classList.add('playerNameDiv');
+        playerBetDiv.textContent = player.currentBet
+
+        playerBottomRowDiv.append(playerStackDiv, playerActionDiv, playerBetDiv)
+
+        playerDiv.append(playerTopRowDiv, playerCardsDiv, playerBottomRowDiv)
     }
 }
 
@@ -484,6 +559,7 @@ createPlayers()
 createDeckAndShuffle()
 dealToEachPlayer()
 dealToEachPlayer()
+putOutBlinds()
 preFlopAction()
 
 
@@ -498,78 +574,3 @@ function renderScreen(stateObj) {
 renderScreen(state)
 
 
-
-let exampleHandArray = testFunction()
-console.log(compareHands(exampleHandArray[0], exampleHandArray[1]))
-
-let hand1 = ['Ah', '2h', '2c', 'Kd', '9d', '5s', '3s'];
-let hand2 = ['Kc', 'Qc', '4c', '4s', '3d', '9h', 'Js'];
-let hand3 = ['Jc', 'Jh', '7d', '6s', 'Qc', 'Ks', '2d'];
-let hand4 = ['Qc', 'Qh', '8d', 'Qs', '3c', 'Js', '7d'];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-let samplePlayer = {
-
-    callChanceWithJunk: 0.25,
-    raiseChanceWithCallRange: 0.1,
-
-    callChanceWithRaiseRange: 0.3,
-    foldChanceToRaiseRange: 0,
-
-    callRaiseChanceWithThreeBetRange: 0.6,
-
-    foldChanceWithThreeBetRangeToFourBet: 0.1,
-    
-    callFlopMinRank: 2,
-    callFlopChanceIfUnder: 0.8,
-
-
-    betFlopMinRank: 1,
-    betFlopIfUnderChance: 0.6,
-
-    raiseFlopMinRank: 2,
-    raiseFlopChanceIfOver: 0.6,
-
-    callTurnMinRank: 0
-
-}
