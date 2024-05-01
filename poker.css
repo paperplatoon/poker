@@ -31,6 +31,17 @@
     justify-content: space-evenly;
 }
 
+.action-div {
+    background-color: green;
+    color: white;
+    width: 8vw;
+    height: 5vh;
+}
+
+.fold {
+    opacity: 0.5;
+}
+
 
 .cardDiv {
     width: calc(15vw / 3);

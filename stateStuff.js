@@ -5,7 +5,7 @@ state = {
     
     currentBet: 0,
     currentPot: 0,
-    currentDealer: 3,
+    currentDealer: 5,
     currentPlayer: 0,
 
     currentDeck: [],
@@ -23,7 +23,6 @@ function Player(nameString, seatNumber) {
     this.currentSeat = seatNumber;
     this.stackSize = 1000; // Arbitrary starting amount
     this.isStillInHand = true;
-    this.currentMove = false;
     this.currentBet = 0;
 
     this.callwithJunkPreFlopPercentage = Math.random() * 0.4;

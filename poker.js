@@ -266,7 +266,6 @@ function isHandInRange(playerCards, playerRange) {
     for (let hand of playerRange) {
         // Sort the hand for comparison
         let sortedHand = hand.sort();
-
         if (arraysAreEqual(sortedPlayerCards, sortedHand)) {
             return true;
         }
@@ -286,22 +285,34 @@ function arraysAreEqual(arr1, arr2) {
 }
 
 function putInBet(playerIndex, betSize) {
-    let moneyToPut = (state.players[playerIndex].stackSize >= betSize) ? betSize : state.players[playerIndex].stackSize;
-    state.currentBet = betSize;
-    state.currentPot += moneyToPut;
-    state.players[playerIndex].stackSize -= moneyToPut;
-    state.players[playerIndex].currentBet = moneyToPut
-    return moneyToPut;
+    let playerBet = state.players[playerIndex].currentBet
+    let extraMoney = betSize- playerBet
+    //is the player putting in all their money?
+    extraMoney = (state.players[playerIndex].stackSize >= (extraMoney)) ? extraMoney : state.players[playerIndex].stackSize;
+    state.players[playerIndex].stackSize -= extraMoney;
+    state.players[playerIndex].currentBet += extraMoney
+    //is the current bet larger
+    state.currentBet = (state.players[playerIndex].currentBet > state.currentBet) ? state.players[playerIndex].currentBet : state.currentBet
+    state.currentPot += extraMoney;
+    return extraMoney;
 }
 
-function putOutBlinds() {
-    console.log(state.players)
+function putOutBlinds(state) {
     let SBIndex = (state.currentDealer < 5) ? state.currentDealer+1 : 0
     let BBIndex = (state.currentDealer < 4) ? state.currentDealer+2 : (state.currentDealer  - 4)
-    state.currentPlayer = (BBIndex < 5) ? BBIndex+1 : 0
+    let hijackIndex = (state.currentDealer < 3) ? state.currentDealer+3 : (state.currentDealer  - 3)
+    let lojackIndex = (state.currentDealer < 2) ? state.currentDealer+4 : (state.currentDealer  - 2)
+    let buttonIndex = (state.currentDealer < 1) ? 5 : (state.currentDealer  - 1)
 
     smallBlind = putInBet(SBIndex, 1)
     bigBlind = putInBet(BBIndex, 3)
+    state.currentPlayer = (BBIndex < 5) ? BBIndex+1 : 0
+    state.players[state.currentDealer].currentSeat = 0
+    state.players[SBIndex].currentSeat = 1
+    state.players[BBIndex].currentSeat = 2
+    state.players[hijackIndex].currentSeat = 3
+    state.players[lojackIndex].currentSeat = 4
+    state.players[buttonIndex].currentSeat = 5
 
 }
 
@@ -312,8 +323,8 @@ function preFlopAction() {
     lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
     console.log("lastindex is " + lastIndex)
 
-    let playerInd = firstIndex
     for (let i=0; i < lastIndex; i++) {
+        playerInd = state.currentPlayer
         player = state.players[playerInd];
         if (player.name === "player") {
             console.log("reached player")
@@ -324,20 +335,16 @@ function preFlopAction() {
             const willCall = Math.random() < player.callwithJunkPreFlopPercentage
             if (state.currentBet === 3) {
                 if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
-                    player.currentMove = "Raise"
                     putInBet(playerInd, state.currentBet*4)
                     console.log(player.name + "raises to " + state.currentBet)
                 } else if (isHandInRange(player.currentHand, looseSmallBlindRaiseRange)) {
-                    player.currentMove = "Call"
                     putInBet(playerInd, state.currentBet)
                     console.log(player.name + " calls " + state.currentBet + " loosely")
                 } else {
                     if (willCall < callThreshold) {
-                        player.currentMove = "Call"
                         putInBet(playerInd, state.currentBet)
                         console.log(player.name + " calls " + state.currentBet + " as a bluff")
                     } else {
-                        player.currentMove = "Fold"
                         player.isStillInHand = false
                         console.log(player.name + " folds")
                     }
@@ -345,39 +352,32 @@ function preFlopAction() {
             } else if (state.currentBet < 25) {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
                     console.log(player.name + "raises to " + state.currentBet)
-                    player.currentMove = "Raise"
                     putInBet(playerInd, state.currentBet*4)
                 } else if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
-                    player.currentMove = "Call"
                     putInBet(playerInd, state.currentBet)
                     console.log(player.name + " calls " + state.currentBet + " loosely")
                 } else if ((willCall*2) < callThreshold) {
-                    player.currentMove = "Call"
                     putInBet(playerInd, state.currentBet)
                     console.log(player.name + " calls " + state.currentBet + " as a bluff")
                 } else {
-                    player.currentMove = "Fold"
                     player.isStillInHand = false
                     console.log(player.name + " folds")
                 }
             } else {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
                     console.log(player.name + "raises to " + state.currentBet)
-                    player.currentMove = "Raise"
                     putInBet(playerInd, state.currentBet*4)
                 } else if ((isHandInRange(player.currentHand, raiseFirstIn[0]))) {
-                    player.currentMove = "Call"
                     putInBet(playerInd, state.currentBet)
                     console.log(player.name + " calls " + state.currentBet + " loosely")
                 } else {
-                    player.currentMove = "Fold"
                     player.isStillInHand = false
                     console.log(player.name + " folds")
                 }
             }
         }
-        playerInd = (playerInd === 5) ? 0 : playerInd+1
-        console.log("increased player index to " + playerInd)
+        state.currentPlayer = (state.currentPlayer === 5) ? 0 : state.currentPlayer+1
+        console.log("increased current index to " + state.currentPlayer)
     }
 }
 
@@ -445,13 +445,6 @@ function createPokerTable() {
                 cardDiv.textContent = ""
                 cardDiv.classList.add("not-visible") 
             }
-            if (player.currentMove === "Raise") {
-                cardDiv.classList.add("raise")
-            } else if (player.currentMove === "Fold") {
-                cardDiv.classList.add("fold")
-            } else if (player.currentMove === "Call") {
-                cardDiv.classList.add("call")
-            }
             playerCardsDiv.appendChild(cardDiv);
         }
         playerDiv.append(playerTopRowDiv, playerCardsDiv)
@@ -459,6 +452,7 @@ function createPokerTable() {
 }
 
 function chooseHoleCardToBeVisiblePokerTable() {
+    document.body.innerHTML = ''
     // Create table div
     const tableDiv = document.createElement('div');
     tableDiv.id = 'tableDiv';
@@ -495,13 +489,6 @@ function chooseHoleCardToBeVisiblePokerTable() {
         playerMoneyDiv.classList.add('playerSeatDiv');
         playerMoneyDiv.textContent = player.currentMoney;
 
-        const playerActionDiv = document.createElement('div');
-        playerActionDiv.classList.add('playerActionDiv');
-
-        const playerActionTextDiv = document.createElement('div');
-        playerActionTextDiv.classList.add('playerActionTextDiv');
-        playerActionTextDiv.textContent = player.currentMove
-        playerActionDiv.append(playerActionTextDiv)
 
         playerTopRowDiv.append(playerSeatDiv, playerNameDiv, playerMoneyDiv)
 
@@ -529,12 +516,8 @@ function chooseHoleCardToBeVisiblePokerTable() {
             } else {
                 cardDiv.classList.add("not-visible") 
             }
-            if (state.players[i].currentMove === "Raise") {
-                cardDiv.classList.add("raise")
-            } else if (state.players[i].currentMove === "Fold") {
-                cardDiv.classList.add("fold")
-            } else if (state.players[i].currentMove === "Call") {
-                cardDiv.classList.add("call")
+            if (!state.players[i].isStillInHand) {
+                playerDiv.classList.add("fold")
             }
             playerCardsDiv.appendChild(cardDiv);
         }
@@ -549,28 +532,75 @@ function chooseHoleCardToBeVisiblePokerTable() {
         playerBetDiv.classList.add('playerNameDiv');
         playerBetDiv.textContent = player.currentBet
 
-        playerBottomRowDiv.append(playerStackDiv, playerActionDiv, playerBetDiv)
+        playerBottomRowDiv.append(playerStackDiv, playerBetDiv)
 
         playerDiv.append(playerTopRowDiv, playerCardsDiv, playerBottomRowDiv)
+
+        
+        
     }
+    const potDiv = document.createElement('div');
+    potDiv.classList.add('playerNameDiv');
+    potDiv.textContent = "Pot: " + state.currentPot;
+    potDiv.style.top = "70%";
+    potDiv.style.left = "70%";
+    
+
+    const foldDiv = document.createElement('div');
+    foldDiv.classList.add('action-div');
+    foldDiv.textContent = "Fold"
+    foldDiv.style.top = '10%';
+    foldDiv.style.left = '70%';
+    foldDiv.onclick = function() {
+        console.log('clicked fold div')
+        const playerIndex = state.players.findIndex(player => player.name === "player");
+        state.players[playerIndex].isStillInHand = false;
+        newHand()
+    }
+    tableDiv.append(potDiv, foldDiv)
+
 }
 
+function renderCardVisible(state) {
+
+} 
+
 createPlayers()
-createDeckAndShuffle()
-dealToEachPlayer()
-dealToEachPlayer()
-putOutBlinds()
-preFlopAction()
+
+function newHand() {
+    if (state.currentPot > 0) {
+        const indices = state.players.map((obj, index) => obj.isStillInHand ? index : null).filter(index => index !== null);
+        state.players[indices[Math.floor(Math.random() * indices.length)]].stackSize += state.currentPot
+    }
+    
+    state.currentDealer = (state.currentDealer === 5) ? 0 : state.currentDealer+1
+    state.players.forEach(player => {
+        player.currentSeat = (player.currentSeat === 0) ? 5 : player.currentSeat-1
+        player.currentBet = 0
+        player.isStillInHand = true
+    })
+    
+    //
+    state.currentPot = 0
+    createDeckAndShuffle()
+    dealToEachPlayer()
+    dealToEachPlayer()
+    putOutBlinds(state)
+    preFlopAction()
+    renderScreen()
+}
 
 
-function renderScreen(stateObj) {
-    if (stateObj.currentScreen === "chooseVisibleCard") {
+
+
+function renderScreen() {
+    if (state.currentScreen === "chooseVisibleCard") {
         chooseHoleCardToBeVisiblePokerTable()
-    } else if (stateObj.currentScreen === "renderTable") {
+    } else if (state.currentScreen === "renderTable") {
         createPokerTable()
     }
 }
 
-renderScreen(state)
+newHand(state)
 
 
