@@ -338,6 +338,7 @@ function preFlopAction() {
             console.log("preflop action closed")
             dealPublicCards(3)
             renderScreen(state)
+            postFlopAction(state)
             return true
         } else if (player.isStillInHand !== false) {
             //if no raise yet
@@ -386,6 +387,50 @@ function preFlopAction() {
                 } else {
                     player.isStillInHand = false
                     console.log(player.name + " folds")
+                }
+            }
+        }
+        state.currentPlayer = (state.currentPlayer === 5) ? 0 : state.currentPlayer+1
+        console.log("increased current index to " + state.currentPlayer)
+    }
+}
+
+function postFlopAction() { 
+    //find dealer and small blind index
+    const playerIndex = state.players.findIndex(player => player.name === "player");
+    let firstIndex = (state.currentDealer < 5) ? state.currentDealer+1 : 0
+    state.currentPlayer = firstIndex;
+    //reset bets to 0 for the flop
+    state.currentBet = 0;
+    state.players.forEach(player => {
+        player.currentBet = 0
+    })
+    let lastIndex = (firstIndex < playerIndex) ? (playerIndex-firstIndex) : (5-firstIndex+1+playerIndex)
+    lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
+
+    for (let i=0; i < lastIndex; i++) {
+        playerInd = state.currentPlayer
+        player = state.players[playerInd];
+        if (player.isStillInHand !== false) {
+            if (player.name === "player") {
+                console.log('betting reached player')
+                return true
+            } else {
+                playerHandRank = getBestPokerHand(player.currentHand.concat(state.publicCards))[1]
+                
+                if (state.currentBet === 0) {
+                    if (playerHandRank>=2) {
+                        console.log(player.name + " bets out for " + state.currentPot/2)
+                        putInBet(playerInd, state.currentPot/2)
+                    }
+                } else {
+                    if (playerHandRank=2) {
+                        putInBet(playerInd, state.currentBet)
+                        console.log(player.name + " calls for " + state.currentBet)
+                    } else {
+                        console.log(player.name + " raises for " + state.currentPot*2)
+                        putInBet(playerInd, state.currentBet*2)    
+                    }
                 }
             }
         }
