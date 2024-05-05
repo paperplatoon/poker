@@ -260,6 +260,13 @@ function dealToEachPlayer() {
     })
 }
 
+function dealPublicCards(numberCards) {
+    for (let i=0; i < numberCards; i++) {
+        state.publicCards.push(state.currentDeck[0])
+        state.currentDeck.splice(0, 1)
+    }
+}
+
 function isHandInRange(playerCards, playerRange) {
     const sortedPlayerCards = playerCards.sort();
 
@@ -321,29 +328,35 @@ function preFlopAction() {
     let firstIndex = state.currentPlayer
     let lastIndex = (firstIndex < playerIndex) ? (playerIndex-firstIndex) : (5-firstIndex+1+playerIndex)
     lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
-    console.log("lastindex is " + lastIndex)
 
     for (let i=0; i < lastIndex; i++) {
         playerInd = state.currentPlayer
         player = state.players[playerInd];
         if (player.name === "player") {
-            console.log("reached player")
             return true
-        } else {
+        } else if (player.currentBet === state.currentBet) {
+            console.log("preflop action closed")
+            dealPublicCards(3)
+            renderScreen(state)
+            return true
+        } else if (player.isStillInHand !== false) {
             //if no raise yet
             const callThreshold = player.callwithJunkPreFlopPercentage
-            const willCall = Math.random() < player.callwithJunkPreFlopPercentage
+            const callValue = Math.random()
+            console.log(player.name + "has a call value of " + callValue.toFixed(2) + " and a threshold of " + callThreshold.toFixed(2))
+            const willCall = callValue < player.callwithJunkPreFlopPercentage
+            let moneyIn = state.currentBet
             if (state.currentBet === 3) {
                 if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
-                    putInBet(playerInd, state.currentBet*4)
-                    console.log(player.name + "raises to " + state.currentBet)
+                    putInBet(playerInd, moneyIn*4)
+                    console.log(player.name + "raises to " + moneyIn*4)
                 } else if (isHandInRange(player.currentHand, looseSmallBlindRaiseRange)) {
-                    putInBet(playerInd, state.currentBet)
-                    console.log(player.name + " calls " + state.currentBet + " loosely")
+                    putInBet(playerInd, moneyIn)
+                    console.log(player.name + " calls " + moneyIn + " loosely")
                 } else {
-                    if (willCall < callThreshold) {
-                        putInBet(playerInd, state.currentBet)
-                        console.log(player.name + " calls " + state.currentBet + " as a bluff")
+                    if (willCall) {
+                        putInBet(playerInd, moneyIn)
+                        console.log(player.name + " calls " + moneyIn + " as a bluff")
                     } else {
                         player.isStillInHand = false
                         console.log(player.name + " folds")
@@ -351,25 +364,25 @@ function preFlopAction() {
                 }
             } else if (state.currentBet < 25) {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
-                    console.log(player.name + "raises to " + state.currentBet)
-                    putInBet(playerInd, state.currentBet*4)
+                    console.log(player.name + "raises to " + moneyIn*3)
+                    putInBet(playerInd, moneyIn*3)
                 } else if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
-                    putInBet(playerInd, state.currentBet)
-                    console.log(player.name + " calls " + state.currentBet + " loosely")
-                } else if ((willCall*2) < callThreshold) {
-                    putInBet(playerInd, state.currentBet)
-                    console.log(player.name + " calls " + state.currentBet + " as a bluff")
+                    putInBet(playerInd, moneyIn)
+                    console.log(player.name + " calls " + moneyIn + " loosely")
+                } else if ((callValue*2 < callThreshold)) {
+                    putInBet(playerInd, moneyIn)
+                    console.log(player.name + " calls " + moneyIn + " as a bluff")
                 } else {
                     player.isStillInHand = false
                     console.log(player.name + " folds")
                 }
             } else {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
-                    console.log(player.name + "raises to " + state.currentBet)
-                    putInBet(playerInd, state.currentBet*4)
+                    console.log(player.name + "raises to " + moneyIn*3)
+                    putInBet(playerInd, state.moneyIn*3)
                 } else if ((isHandInRange(player.currentHand, raiseFirstIn[0]))) {
-                    putInBet(playerInd, state.currentBet)
-                    console.log(player.name + " calls " + state.currentBet + " loosely")
+                    putInBet(playerInd, moneyIn)
+                    console.log(player.name + " calls " + moneyIn + " loosely")
                 } else {
                     player.isStillInHand = false
                     console.log(player.name + " folds")
@@ -460,13 +473,24 @@ function chooseHoleCardToBeVisiblePokerTable() {
 
     // Create player divs and card divs
     const positions = [
-        { top: '90%', left: '50%' },
-        { top: '70%', left: '10%' },
-        { top: '30%', left: '10%' },
-        { top: '10%', left: '50%' },
-        { top: '30%', left: '90%' },
+        { top: '100%', left: '40%' },
+        { top: '75%', left: '0%' },
+        { top: '30%', left: '-20%' },
+        { top: '-20%', left: '10%' },
+        { top: '-20%', left: '70%' },
         { top: '70%', left: '90%' }
     ];
+
+    const publicCardsDiv = document.createElement('div');
+    publicCardsDiv.classList.add('public-cards-div');
+    publicCardsDiv.style.top = "50%"
+    publicCardsDiv.style.left = "50%"
+    for (let i=-0; i < state.publicCards.length; i++) {
+        const cardDiv = document.createElement('div');
+        cardDiv.classList.add('cardDiv');
+        cardDiv.textContent = state.publicCards[i]
+        publicCardsDiv.append(cardDiv)
+    }
 
     for (let i = 0; i < 6; i++) {
         let player = state.players[i]
@@ -536,9 +560,8 @@ function chooseHoleCardToBeVisiblePokerTable() {
 
         playerDiv.append(playerTopRowDiv, playerCardsDiv, playerBottomRowDiv)
 
-        
-        
     }
+
     const potDiv = document.createElement('div');
     potDiv.classList.add('playerNameDiv');
     potDiv.textContent = "Pot: " + state.currentPot;
@@ -557,7 +580,44 @@ function chooseHoleCardToBeVisiblePokerTable() {
         state.players[playerIndex].isStillInHand = false;
         newHand()
     }
-    tableDiv.append(potDiv, foldDiv)
+
+    const callDiv = document.createElement('div');
+    callDiv.classList.add('action-div');
+    callDiv.textContent = "Call"
+    callDiv.style.top = '10%';
+    callDiv.style.left = '70%';
+    callDiv.onclick = function() {
+        console.log('clicked call div')
+        const playerIndex = state.players.findIndex(player => player.name === "player");
+        const moneyIn = (state.currentBet - state.players[playerIndex].currentBet)
+        state.players[playerIndex].currentBet += moneyIn
+        state.currentPot += moneyIn
+        state.players[playerIndex].stackSize -= moneyIn 
+        state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
+        preFlopAction()
+        renderScreen()
+    }
+
+    const RaiseDiv = document.createElement('div');
+    RaiseDiv.classList.add('action-div');
+    RaiseDiv.textContent = "Raise"
+    RaiseDiv.style.top = '10%';
+    RaiseDiv.style.left = '70%';
+    RaiseDiv.onclick = function() {
+        
+        const playerIndex = state.players.findIndex(player => player.name === "player");
+        const moneyIn = (state.currentBet - state.players[playerIndex].currentBet) * 3
+        state.currentBet += moneyIn-state.currentBet
+        console.log('player raised to ' + state.currentBet)
+        state.players[playerIndex].currentBet += moneyIn
+        state.currentPot += moneyIn
+        state.players[playerIndex].stackSize -= moneyIn 
+        state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
+        preFlopAction()
+        renderScreen()
+    }
+    document.body.append(foldDiv, callDiv, RaiseDiv)
+    tableDiv.append(publicCardsDiv, potDiv)
 
 }
 
@@ -568,11 +628,16 @@ function renderCardVisible(state) {
 createPlayers()
 
 function newHand() {
+    //give pot to random player
     if (state.currentPot > 0) {
         const indices = state.players.map((obj, index) => obj.isStillInHand ? index : null).filter(index => index !== null);
-        state.players[indices[Math.floor(Math.random() * indices.length)]].stackSize += state.currentPot
+        winnerindex = indices[Math.floor(Math.random() * indices.length)]
+        let winningPlayer = state.players[winnerindex]
+        
+        console.log(" Of ",  indices + "players left, " + winnerindex + " wins the pot of " + state.currentPot)
+        winningPlayer.stackSize += state.currentPot
     }
-    
+
     state.currentDealer = (state.currentDealer === 5) ? 0 : state.currentDealer+1
     state.players.forEach(player => {
         player.currentSeat = (player.currentSeat === 0) ? 5 : player.currentSeat-1

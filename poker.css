@@ -1,5 +1,5 @@
 #tableDiv {
-    width: 80vw;
+    width: 60vw;
     height: 60vh;
     background-color: green;
     border-radius: 50%;
@@ -24,6 +24,14 @@
     align-items: center;
 }
 
+.action-div {
+    background-color: blue;
+    color: white;
+    width: 5vw;
+    height: 5vh;
+    margin: 4px;
+}
+
 .playerTopRowDiv, .playerCardsDiv {
     display: flex;
     width: 14vw;
@@ -31,12 +39,6 @@
     justify-content: space-evenly;
 }
 
-.action-div {
-    background-color: green;
-    color: white;
-    width: 8vw;
-    height: 5vh;
-}
 
 .fold {
     opacity: 0.5;

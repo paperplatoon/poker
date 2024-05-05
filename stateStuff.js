@@ -2,6 +2,7 @@ state = {
     players: [],
     playerMoney: 1000,
     playerHand: [],
+    publicCards: [],
     
     currentBet: 0,
     currentPot: 0,
