@@ -97,6 +97,7 @@ function evaluatePokerHand(hand) {
     let isStraight = isHandStraight(hand);
     let ranks = getCardRanks(hand);
     let rankCounts = getRankCounts(ranks);
+    let isHandDraw = isADraw(hand) 
 
     if (isFlush && isStraight) {
         if (ranks[0] === 10) {
@@ -131,6 +132,10 @@ function evaluatePokerHand(hand) {
         return 3; // Two Pair
     }
 
+    if(isHandDraw) {
+        return 3;
+    }
+
     if (hasSameRankCount(rankCounts, 2)) {
         return 2; // One Pair
     }
@@ -158,6 +163,29 @@ function isHandStraight(hand) {
     let minRank = Math.min(...ranks);
     let maxRank = Math.max(...ranks);
     return maxRank - minRank === 4 && new Set(ranks).size === 5;
+}
+
+function isADraw(hand) {
+    // Check for 4 to a straight
+    let hasStraight = false;
+    for (let i = 0; i <= 1; i++) {
+        if (hand[i + 1] - hand[i] === 1 && hand[i + 2] - hand[i + 1] === 1 && hand[i + 3] - hand[i + 2] === 1) {
+            hasStraight = true;
+            console.log("hand is a straight draw")
+            break;
+        }
+    }
+
+    // Check for 4 to a flush
+    let suits = hand.map(card => card[1]);
+    let suitCounts = {};
+    suits.forEach(suit => {
+        suitCounts[suit] = suitCounts[suit] ? suitCounts[suit] + 1 : 1;
+    });
+    let hasFlush = Object.values(suitCounts).some(count => count >= 4);
+    if (hasFlush) { console.log("hand is a flush draw")}
+
+    return hasStraight || hasFlush;
 }
 
 function getCardRanks(hand) {
@@ -338,19 +366,19 @@ function preFlopAction() {
             console.log("preflop action closed")
             dealPublicCards(3)
             renderScreen(state)
-            postFlopAction(state)
+            postFlopAction()
             return true
         } else if (player.isStillInHand !== false) {
             //if no raise yet
             const callThreshold = player.callwithJunkPreFlopPercentage
             const callValue = Math.random()
-            console.log(player.name + "has a call value of " + callValue.toFixed(2) + " and a threshold of " + callThreshold.toFixed(2))
+            //console.log(player.name + " has a call value of " + callValue.toFixed(2) + " and a threshold of " + callThreshold.toFixed(2))
             const willCall = callValue < player.callwithJunkPreFlopPercentage
             let moneyIn = state.currentBet
             if (state.currentBet === 3) {
                 if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
                     putInBet(playerInd, moneyIn*4)
-                    console.log(player.name + "raises to " + moneyIn*4)
+                    console.log(player.name + " raises to " + moneyIn*4)
                 } else if (isHandInRange(player.currentHand, looseSmallBlindRaiseRange)) {
                     putInBet(playerInd, moneyIn)
                     console.log(player.name + " calls " + moneyIn + " loosely")
@@ -365,7 +393,7 @@ function preFlopAction() {
                 }
             } else if (state.currentBet < 25) {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
-                    console.log(player.name + "raises to " + moneyIn*3)
+                    console.log(player.name + " raises to " + moneyIn*3)
                     putInBet(playerInd, moneyIn*3)
                 } else if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
                     putInBet(playerInd, moneyIn)
@@ -379,7 +407,7 @@ function preFlopAction() {
                 }
             } else {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
-                    console.log(player.name + "raises to " + moneyIn*3)
+                    console.log(player.name + " raises to " + moneyIn*3)
                     putInBet(playerInd, state.moneyIn*3)
                 } else if ((isHandInRange(player.currentHand, raiseFirstIn[0]))) {
                     putInBet(playerInd, moneyIn)
@@ -417,19 +445,88 @@ function postFlopAction() {
                 return true
             } else {
                 playerHandRank = getBestPokerHand(player.currentHand.concat(state.publicCards))[1]
-                
+                console.log(player.name + " hand rank is " + playerHandRank)
+                const bluffOrTrap = Math.random()
                 if (state.currentBet === 0) {
                     if (playerHandRank>=2) {
-                        console.log(player.name + " bets out for " + state.currentPot/2)
-                        putInBet(playerInd, state.currentPot/2)
-                    }
-                } else {
-                    if (playerHandRank=2) {
-                        putInBet(playerInd, state.currentBet)
-                        console.log(player.name + " calls for " + state.currentBet)
+                        //even if player has good hand, they trap sometimes
+                        if (bluffOrTrap > 0.2) {
+                            console.log(player.name + " bets out for half pot: " + state.currentPot/2)
+                            putInBet(playerInd, state.currentPot/2)
+                        } else {
+                            console.log(player.name + " checks as a trap")
+                        }
                     } else {
-                        console.log(player.name + " raises for " + state.currentPot*2)
-                        putInBet(playerInd, state.currentBet*2)    
+                        //if player has bad hand, they bluff at pot sometimes
+                        if (bluffOrTrap < 0.2) {
+                            console.log(player.name + " bluffs out for half pot: " + state.currentPot/2)
+                            putInBet(playerInd, state.currentPot/2)
+                        } else {
+                            console.log(player.name + " checked with a bad hand")
+                        }
+                    }
+                } else if (state.currentBet < 30) {
+                    if (playerHandRank >= 3) {
+                        //even if player has good hand, they trap sometimes
+                        if (bluffOrTrap > 0.2) {
+                            console.log(player.name + " raises for " + state.currentBet*2)
+                            putInBet(playerInd, state.currentBet*2) 
+                        } else {
+                            putInBet(playerInd, state.currentBet)
+                            console.log(player.name + " calls for " + state.currentBet)
+                        } 
+                    } else if (playerHandRank>1) {
+                        //even if player has decent hand, they still fold sometimes
+                        if (bluffOrTrap > 0.1) {
+                            console.log(player.name + " calls for " + state.currentBet)
+                            putInBet(playerInd, state.currentBet) 
+                        } else {
+                            console.log(player.name + " folded with a decent hand")
+                            player.isStillInHand = false
+                        } 
+                    } else {
+                        //players sometimes call even with terrible hand
+                        if (bluffOrTrap < 0.1) {
+                            console.log(player.name + " calls as bluff for " + state.currentBet)
+                            putInBet(playerInd, state.currentBet) 
+                        } else {
+                            player.isStillInHand = false
+                            console.log(player.name + " folded with a bad hand")
+                        }
+                    }
+                //in a big pot, players need a good hand to stick around
+                } else {
+                    if (playerHandRank >= 4) {
+                        //even if player has good hand, they trap sometimes
+                        if (bluffOrTrap > 0.1) {
+                            console.log(player.name + " raises for " + state.currentBet*2)
+                            putInBet(playerInd, state.currentBet*2) 
+                        } else {
+                            putInBet(playerInd, state.currentBet)
+                            console.log(player.name + " calls as a trap for " + state.currentBet)
+                        } 
+                    } else if (playerHandRank == 3) {
+                        //players trap slightly more often with draws or two pair
+                        if (bluffOrTrap > 0.25) {
+                            console.log(player.name + " raises for " + state.currentBet*2)
+                            putInBet(playerInd, state.currentBet*2) 
+                        } else {
+                            putInBet(playerInd, state.currentBet)
+                            console.log(player.name + " calls as a trap for " + state.currentBet)
+                        } 
+                    } else if (playerHandRank > 1) {
+                        //even if player has a pair, they still fold sometimes
+                        if (bluffOrTrap > 0.4) {
+                            console.log(player.name + " calls for " + state.currentBet)
+                            putInBet(playerInd, state.currentBet) 
+                        } else {
+                            console.log(player.name + " folded with a decent hand")
+                            player.isStillInHand = false
+                        } 
+                    } else {
+                        //players fold with nothing if the pot is big
+                        console.log(player.name + " folded with nothing")
+                        player.isStillInHand = false
                     }
                 }
             }
@@ -639,7 +736,40 @@ function chooseHoleCardToBeVisiblePokerTable() {
         state.currentPot += moneyIn
         state.players[playerIndex].stackSize -= moneyIn 
         state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
-        preFlopAction()
+        if (state.publicCards.length === 0) {
+            preFlopAction()
+        } else {
+            postFlopAction()
+        }
+        renderScreen()
+    }
+
+    const betDiv = document.createElement('div');
+    betDiv.classList.add('action-div');
+    betDiv.textContent = "Bet"
+    betDiv.style.top = '10%';
+    betDiv.style.left = '70%';
+    betDiv.onclick = function() {
+        console.log('clicked bet div')
+        const playerIndex = state.players.findIndex(player => player.name === "player");
+        const moneyIn = (state.currentPot/2)
+        state.players[playerIndex].currentBet += moneyIn
+        state.currentPot += moneyIn
+        state.players[playerIndex].stackSize -= moneyIn 
+        state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
+        postFlopAction()
+        renderScreen()
+    }
+
+    const checkDiv = document.createElement('div');
+    checkDiv.classList.add('action-div');
+    checkDiv.textContent = "Check"
+    checkDiv.style.top = '10%';
+    checkDiv.style.left = '70%';
+    checkDiv.onclick = function() {
+        console.log('clicked check div')
+        state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
+        postFlopAction()
         renderScreen()
     }
 
@@ -658,10 +788,18 @@ function chooseHoleCardToBeVisiblePokerTable() {
         state.currentPot += moneyIn
         state.players[playerIndex].stackSize -= moneyIn 
         state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
-        preFlopAction()
+        if (state.publicCards.length === 0) {
+            preFlopAction()
+        } else {
+            postFlopAction()
+        }
         renderScreen()
     }
-    document.body.append(foldDiv, callDiv, RaiseDiv)
+    if (state.currentBet === 0) {
+        document.body.append(checkDiv, betDiv)
+    } else {
+        document.body.append(foldDiv, callDiv, RaiseDiv)
+    }
     tableDiv.append(publicCardsDiv, potDiv)
 
 }
@@ -692,6 +830,7 @@ function newHand() {
     
     //
     state.currentPot = 0
+    state.publicCards = []
     createDeckAndShuffle()
     dealToEachPlayer()
     dealToEachPlayer()
