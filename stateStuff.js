@@ -21,6 +21,8 @@ function Player(nameString, seatNumber) {
     this.currentHand = [];
     this.leftCardVisible = false;
     this.rightCardVisible = false;
+    this.leftCardDealt = false;
+    this.rightCardDealt = false;
     this.currentSeat = seatNumber;
     this.stackSize = 1000; // Arbitrary starting amount
     this.isStillInHand = true;
