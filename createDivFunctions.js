@@ -18,6 +18,10 @@ function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) 
         playerDiv.classList.add("fold")
     }
 
+    if (state.currentPlayer === player.currentSeat) {
+        playerDiv.classList.add("active-player")
+    }
+
     playerDiv.append(playerTopRowDiv, playerCardsDiv, playerBottomRowDiv)
     return playerDiv
 }
@@ -109,3 +113,59 @@ function createPokerTableDiv() {
         playerDiv.append(playerTopRowDiv, playerCardsDiv)
     }
 }
+
+function createPotDiv(stateObj) {
+    const potDiv = document.createElement('div');
+    potDiv.classList.add('playerNameDiv');
+    potDiv.textContent = "Pot: " + stateObj.currentPot;
+    potDiv.style.top = "70%";
+    potDiv.style.left = "70%";
+
+    return potDiv
+}
+function createPublicCardsDiv(stateObj) {
+    const publicCardsDiv = document.createElement('div');
+    publicCardsDiv.classList.add('public-cards-div');
+    publicCardsDiv.style.top = "50%"
+    publicCardsDiv.style.left = "50%"
+    for (let i=-0; i < stateObj.publicCards.length; i++) {
+        const cardDiv = document.createElement('div');
+        cardDiv.classList.add('cardDiv');
+        cardDiv.textContent = stateObj.publicCards[i]
+        publicCardsDiv.append(cardDiv)
+    }
+    return publicCardsDiv
+}
+
+function createBettingDiv(buttonString) {
+    const bettingDiv = document.createElement('div');
+    bettingDiv.classList.add('action-div');
+    bettingDiv.textContent = buttonString
+    bettingDiv.style.top = '10%';
+    bettingDiv.style.left = '70%';
+    return bettingDiv
+}
+
+function createRaiseDiv(stateObj) {
+    const RaiseDiv = document.createElement('div');
+    RaiseDiv.classList.add('action-div');
+    RaiseDiv.textContent = "Raise"
+    RaiseDiv.style.top = '10%';
+    RaiseDiv.style.left = '70%';
+    RaiseDiv.onclick = async function() {
+        const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+        const moneyIn = (stateObj.currentBet - stateObj.players[playerIndex].currentBet) * 3
+        stateObj = await putInBet(stateObj, playerIndex, moneyIn)
+        console.log('player raised to ' + state.currentBet)
+        stateObj = await nextPlayer(stateObj)
+        if (stateObj.publicCards.length === 0) {
+            stateObj = await preFlopAction(stateObj)
+        } else {
+            stateObj = await postFlopAction(stateObj)
+        }
+    }
+    return RaiseDiv
+}
+
+    
+

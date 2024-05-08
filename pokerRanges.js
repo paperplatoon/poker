@@ -14,12 +14,14 @@ smallBlindRaiseRange = AKs.concat(ATs, A9s, A8s, A7s, A5s, KK, KJs, KTs, K8s, K5
     AJo, KJo, JJ, JTs, T9s, K9o, Q9o, J9s, _98o, A7o, K7o, A6o, _65s, _64s, _54s, _53s, A4o, _33, _22)
 
 raiseFirstIn= [
+    buttonRange,
+    smallBlindRaiseRange,
+    buttonRange,
     lojackRange,
     hijackRange,
     cutoffRange,
-    buttonRange,
-    smallBlindRaiseRange,
-    buttonRange
+    
+    
 ]
 
 looseLojackRange = AA.concat(KK, QQ, JJ, TT, _99, _88, _77, _66, _55, _44, _33,

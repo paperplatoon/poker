@@ -284,3 +284,11 @@ function arraysAreEqual(arr1, arr2) {
 
     return true;
 }
+
+async function nextPlayer(stateObj) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.currentPlayer  = (newState.currentPlayer < 5) ? newState.currentPlayer + 1 : 0
+    })
+    await updateState(stateObj)
+    return stateObj
+}
