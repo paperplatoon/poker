@@ -10,7 +10,7 @@ function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) 
 
     const playerBottomRowDiv = createDiv('playerTopRowDiv')
     const playerStackDiv = createDiv('playerNameDiv', player.stackSize)
-    const playerBetDiv = createDiv('playerNameDiv', player.orderNumber)
+    const playerBetDiv = createDiv('playerNameDiv', player.currentBet)
     playerBottomRowDiv.append(playerStackDiv, playerBetDiv)
 
     const playerCardsDiv = createPlayerCardsDiv(player, cardFunctionString)

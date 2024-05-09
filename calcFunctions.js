@@ -316,12 +316,16 @@ async function moveButton(stateObj) {
 }
 
 //state.currentPlayer goes to the next player
-async function nextCurrentPlayer(stateObj, playerInd) {
+async function nextPlayer(stateObj) {
+    console.log("original current player is " + stateObj.currentPlayer)
     stateObj = immer.produce(stateObj, async (newState) => {
-        player = newState.players[playerIndex]
-        const playerSeatIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
-        stateObj.currentPlayer = (playerSeatIndex === 5) ? "Dealer" : seatPositions[(playerSeatIndex+1)] 
+        //find the seatPositions index of the current Player
+        let currentPlayerIndex = seatPositions.findIndex(seatPosition => seatPosition === newState.currentPlayer)
+        console.log("currentPlayerIndex is " + currentPlayerIndex)
+        newState.currentPlayer = (currentPlayerIndex === 5) ? "SB" : seatPositions[(currentPlayerIndex+1)] 
+        console.log("next player changed to " + newState.currentPlayer)
     })
+    console.log("next player moved to " + stateObj.currentPlayer)
     return stateObj
 }
 

@@ -127,24 +127,28 @@ async function putInBlinds(stateObj) {
 }
 
 async function preFlopAction(stateObj) { 
-    const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-    let firstIndex = stateObj.currentPlayer
-    let lastIndex = (firstIndex < playerIndex) ? (playerIndex-firstIndex) : (5-firstIndex+1+playerIndex)
-    lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
+    // const firstIndex = stateObj.players.findIndex(player => player.name === "UTG");
+    // const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+    // let lastIndex = (firstIndex < playerIndex) ? (playerIndex-firstIndex) : (5-firstIndex+1+playerIndex)
+    // lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
 
-    for (let i=0; i < lastIndex; i++) {
-        console.log("index is " + i)
-        let playerInd = stateObj.currentPlayer
+    for (let i=0; i < stateObj.players.length; i++) {
+        //just find the player whose current seat matches state.currentPlayer
+        const playerInd = stateObj.players.findIndex(player => player.currentSeat === stateObj.currentPlayer);
         player = stateObj.players[playerInd];
-        if (player.name === "player") {
-            return true
-        } else if (player.currentBet === stateObj.currentBet) {
+        console.log("action for " + player.name)
+        if (player.currentBet === stateObj.currentBet) {
             console.log("preflop action closed")
             stateObj = await dealPublicCards(3)
             console.log(stateObj)
             stateObj = await postFlopAction(stateObj)
             return stateObj
-        } else if (player.isStillInHand !== false) {
+        } else if (player.isStillInHand === false) {
+            //skip the player because they're no longer in the hand
+        } else if (player.name === "player") {
+            console.log("you found the player so preflop action stopped")
+            return true
+        } else {
             //if no raise yet
             const callThreshold = player.callwithJunkPreFlopPercentage
             const callValue = Math.random()
@@ -152,6 +156,7 @@ async function preFlopAction(stateObj) {
             const willCall = callValue < player.callwithJunkPreFlopPercentage
             let moneyIn = stateObj.currentBet
             if (stateObj.currentBet === 3) {
+                //####FIX - SHOULD INSTEAD CONSTRUCT EACH PLAYER TO HAVE A FOURBET AND RFI RANGE 
                 if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
                    stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
                     console.log(player.name + " raises to " + moneyIn*4)
@@ -186,7 +191,7 @@ async function preFlopAction(stateObj) {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
                     console.log(player.name + " raises to " + moneyIn*3)
                     stateObj = await putInBet(stateObj, playerInd, moneyIn*3)
-                } else if ((isHandInRange(player.currentHand, raiseFirstIn[0]))) {
+                } else if ((isHandInRange(player.currentHand, raiseFirstIn["Dealer"]))) {
                     stateObj = await putInBet(stateObj, playerInd, moneyIn)
                     console.log(player.name + " calls " + moneyIn + " loosely")
                 } else {
@@ -195,10 +200,7 @@ async function preFlopAction(stateObj) {
                 }
             }
         }
-        stateObj = immer.produce(stateObj, (newState) => {
-            newState.currentPlayer = (newState.currentPlayer === 5) ? 0 : newState.currentPlayer+1
-            console.log("increased current index to " + newState.currentPlayer)
-        })
+        stateObj = await nextPlayer(stateObj)
         await pause(500)
         await updateState(stateObj) 
     }
@@ -466,7 +468,7 @@ async function newHand(stateObj, firstHand=false) {
     stateObj = await dealToEachPlayer(stateObj)
     stateObj = await dealToEachPlayer(stateObj)
     stateObj = await putInBlinds(stateObj)
-    // stateObj = await preFlopAction(stateObj)
+    stateObj = await preFlopAction(stateObj)
     await renderScreen(stateObj)
 }
 

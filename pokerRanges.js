@@ -13,16 +13,14 @@ buttonRange = cutoffRange.concat(K2s, Q5s, Q4s, Q3s, J7s, J6s, J5s, J4s, T6s, _8
 smallBlindRaiseRange = AKs.concat(ATs, A9s, A8s, A7s, A5s, KK, KJs, KTs, K8s, K5s, K3s, K2s, AQo, QQ, QJs, QTs, Q5s, Q4s, Q3s, Q2s,
     AJo, KJo, JJ, JTs, T9s, K9o, Q9o, J9s, _98o, A7o, K7o, A6o, _65s, _64s, _54s, _53s, A4o, _33, _22)
 
-raiseFirstIn= [
-    buttonRange,
-    smallBlindRaiseRange,
-    buttonRange,
-    lojackRange,
-    hijackRange,
-    cutoffRange,
-    
-    
-]
+raiseFirstIn= {
+    "Dealer": buttonRange,
+    "SB": smallBlindRaiseRange,
+    "BB": buttonRange,
+    "UTG": lojackRange,
+    "Lojack": hijackRange,
+    "CO": cutoffRange,
+}
 
 looseLojackRange = AA.concat(KK, QQ, JJ, TT, _99, _88, _77, _66, _55, _44, _33,
     AKs, AQs, AJs, ATs, A9s, A8s, A7s, A6s, A5s, A4s, A3s, A2s,
