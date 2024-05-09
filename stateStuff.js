@@ -7,7 +7,7 @@ state = {
     currentBet: 0,
     currentPot: 0,
     currentDealer: 5,
-    currentPlayer: 0,
+    currentPlayer: "SB",
 
     currentDeck: [],
     currentScreen: "chooseVisibleCard",
@@ -15,15 +15,23 @@ state = {
 }
 
 const possibleNames = ["Alex", "Casey", "Charlie", "Dakota", "Emerson", "Finn", "Harper", "Jamie", "Jordan", "Kai", "Morgan", "Parker", "Quinn", "Reese", "Riley", "River", "Rowan", "Skyler", "Taylor"];
+seatPositions = [
+  "SB",
+  "BB",
+  "UTG",
+  "Lojack",
+  "CO",
+  "Dealer"
+]
 
-function Player(nameString, seatNumber) {
-    this.name = nameString;
+function Player() {
+    this.name = false;
     this.currentHand = [];
     this.leftCardVisible = false;
     this.rightCardVisible = false;
     this.leftCardDealt = false;
     this.rightCardDealt = false;
-    this.currentSeat = seatNumber;
+    this.currentSeat = false;
     this.stackSize = 1000; // Arbitrary starting amount
     this.isStillInHand = true;
     this.currentBet = 0;
@@ -34,19 +42,30 @@ function Player(nameString, seatNumber) {
   }
   
   // Create 5 AI players
-  function createPlayers() {
+function createPlayers() {
     let players = [];
     for (let i = 0; i < 5; i++) {
       let nameIndex = Math.floor(Math.random() * possibleNames.length)
       let randomName = possibleNames[nameIndex]
       possibleNames.splice(nameIndex, 1)
-      players.push(new Player(randomName, i));
+      let player = new Player();
+      player.name = randomName
+      player.currentSeat = seatPositions[i]
+      console.log(i + ". initializing player " + player.name + " at position" + seatPositions[i])
+      console.log(JSON.stringify(player));
+      players.push(player);
     }
-    players.push(new Player("player", 5));
-    players[5].leftCardVisible = true;
-    players[5].rightCardVisible = true;
+    console.log(players)
+    let playerCharacter = new Player();
+    playerCharacter.name = "player"
+    playerCharacter.currentSeat = "Dealer"
+    playerCharacter.leftCardVisible = true;
+    playerCharacter.rightCardVisible = true;
+    players.push(playerCharacter);
+    console.log(JSON.stringify(players));
     return players
   }
+
 
   state.players = createPlayers()
   

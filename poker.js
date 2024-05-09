@@ -25,7 +25,7 @@ async function renderScreen(stateObj) {
 }
 
 async function startGame() {
-    await newHand(state)
+    await newHand(state, true)
 }
 
 async function createDeckAndShuffle(stateObj) {
@@ -49,13 +49,11 @@ async function createDeckAndShuffle(stateObj) {
 }
 
 async function dealToEachPlayer(stateObj) {
-    console.log("players are " + stateObj.players.length)
-    console.log("current deck is  " + stateObj.currentDeck)
+    console.log("dealing")
     for (i = 0; i < stateObj.players.length; i++) {
         stateObj = immer.produce(stateObj, (newState) => {
-            console.log('player hand name is ' + newState.players[i].name)
-            console.log('player hand is ' + newState.players[i].currentHand)
             newState.players[i].currentHand.push(newState.currentDeck[0])
+            console.log("dealing " + newState.currentDeck[0] + " to player " + newState.players[i].name)
             newState.currentDeck.splice(0, 1)
         })
         await pause(100)
@@ -114,32 +112,17 @@ async function makeCurrentPlayer(stateObj, playerIndex) {
 }
 
 async function putInBlinds(stateObj) {
-    let SBIndex = (state.currentDealer < 5) ? state.currentDealer+1 : 0
-    let BBIndex = (state.currentDealer < 4) ? state.currentDealer+2 : (state.currentDealer  - 4)
-    let hijackIndex = (state.currentDealer < 3) ? state.currentDealer+3 : (state.currentDealer  - 3)
-    let lojackIndex = (state.currentDealer < 2) ? state.currentDealer+4 : (state.currentDealer  - 2)
-    let buttonIndex = (state.currentDealer < 1) ? 5 : (state.currentDealer  - 1)
+    const SBIndex = stateObj.players.findIndex(player => player.currentSeat === "SB")
+    const BBIndex = stateObj.players.findIndex(player => player.currentSeat === "BB")
 
-    stateObj = await makeCurrentPlayer(stateObj, SBIndex)
-
-    
+    stateObj = await makeCurrentPlayer(stateObj, "SB")
     stateObj = await putInBet(stateObj, SBIndex, 1)
     await pause(500)
-    stateObj = await nextPlayer(stateObj)
-    
+
+    stateObj = await makeCurrentPlayer(stateObj, "BB")
     stateObj = await putInBet(stateObj, BBIndex, 3)
     await pause(500)
-    stateObj = await nextPlayer(stateObj)
-    stateObj = immer.produce(stateObj, (newState) => {
-        newState.currentPlayer = (BBIndex < 5) ? BBIndex+1 : 0
-        newState.players[newState.currentDealer].currentSeat = 0
-        newState.players[SBIndex].currentSeat = 1
-        newState.players[BBIndex].currentSeat = 2
-        newState.players[hijackIndex].currentSeat = 3
-        newState.players[lojackIndex].currentSeat = 4
-        newState.players[buttonIndex].currentSeat = 5
-    })
-    await updateState(stateObj)
+    stateObj = await makeCurrentPlayer(stateObj, "UTG")
     return stateObj
 }
 
@@ -456,9 +439,7 @@ async function resetHand(stateObj) {
         })
     }
     stateObj = immer.produce(stateObj, (newState) => {
-        newState.currentDealer = (newState.currentDealer === 5) ? 0 : newState.currentDealer+1
         newState.players.forEach(player => {
-            player.currentSeat = (player.currentSeat === 0) ? 5 : player.currentSeat-1
             player.currentBet = 0
             player.isStillInHand = true
             player.currentHand = []
@@ -473,16 +454,19 @@ async function resetHand(stateObj) {
 }
 
 
-async function newHand(stateObj) {
+async function newHand(stateObj, firstHand=false) {
 
     stateObj = await resetHand(stateObj)
+    if (!firstHand) {
+        stateObj = await moveButton(stateObj)
+    }
     stateObj = await updateState(stateObj)
     
     stateObj = await createDeckAndShuffle(stateObj)
     stateObj = await dealToEachPlayer(stateObj)
     stateObj = await dealToEachPlayer(stateObj)
     stateObj = await putInBlinds(stateObj)
-    stateObj = await preFlopAction(stateObj)
+    // stateObj = await preFlopAction(stateObj)
     await renderScreen(stateObj)
 }
 

@@ -285,9 +285,49 @@ function arraysAreEqual(arr1, arr2) {
     return true;
 }
 
-async function nextPlayer(stateObj) {
+seatPositions = [
+    "Dealer",
+    "SB",
+    "BB",
+    "UTG",
+    "Lojack",
+    "CO"
+  ]
+
+//player at playerIndex has their .currentSeat property updated to the next in line
+async function moveToNextPlayer(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, (newState) => {
-        newState.currentPlayer  = (newState.currentPlayer < 5) ? newState.currentPlayer + 1 : 0
+        player = newState.players[playerIndex]
+        const playerSeatIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
+        player.currentSeat = (playerSeatIndex === 5) ? "Dealer" : seatPositions[(playerSeatIndex+1)]  
+    })
+    return stateObj
+} 
+
+//all players have their .currentSeat property updated to next in line
+async function moveButton(stateObj) {
+    stateObj = immer.produce(stateObj, async (newState) => {
+            for (i=0; i < newState.players.length; i++) {
+                stateObj = await moveToNextPlayer(stateObj, i)
+            }
+    })
+    await updateState(stateObj)
+    return stateObj
+}
+
+//state.currentPlayer goes to the next player
+async function nextCurrentPlayer(stateObj, playerInd) {
+    stateObj = immer.produce(stateObj, async (newState) => {
+        player = newState.players[playerIndex]
+        const playerSeatIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
+        stateObj.currentPlayer = (playerSeatIndex === 5) ? "Dealer" : seatPositions[(playerSeatIndex+1)] 
+    })
+    return stateObj
+}
+
+async function makeCurrentPlayer(stateObj, seatToMake) {
+    stateObj = immer.produce(stateObj, async (newState) => {
+        stateObj.currentPlayer = seatToMake 
     })
     await updateState(stateObj)
     return stateObj
