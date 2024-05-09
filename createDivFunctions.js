@@ -147,7 +147,7 @@ function createBettingDiv(buttonString) {
 }
 
 function createRaiseDiv(stateObj) {
-    const RaiseDiv = document.createElement('div');
+    let RaiseDiv = document.createElement('div');
     RaiseDiv.classList.add('action-div');
     RaiseDiv.textContent = "Raise"
     RaiseDiv.style.top = '10%';
@@ -167,5 +167,20 @@ function createRaiseDiv(stateObj) {
     return RaiseDiv
 }
 
+function createFoldDiv(stateObj) {
+    let foldDiv = document.createElement('div');
+    foldDiv.classList.add('action-div');
+    foldDiv.textContent = "Fold"
+    foldDiv.style.top = '10%';
+    foldDiv.style.left = '70%';
+    foldDiv.onclick = async function() {
+        console.log('clicked fold div')
+        const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+        stateObj = await playerFolds(stateObj, playerIndex)
+        newHand(stateObj)
+    }
+
+    return foldDiv
+}
     
 

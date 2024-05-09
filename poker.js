@@ -1,9 +1,14 @@
-//things to do - eventually, update Bet function to change by player (some bluff more etc)
-//fix bet/check/raise/fold divs
 
-//add resetAfterHand function for newHand
+//fix bet/check/raise/fold divs
+//update checkDiv to be able to check on preflop
+//things to do - eventually, update Bet function to change by player (some bluff more etc)
+//add suspicion level to the state; checkForDeath to see if the player loses
+//add a visual indicator for suspicion level
 //add a fold function using stateObj immer 
+
+//DONE
 //add an indicator for current player's div
+//add resetAfterHand function for new hand
 
 async function updateState(newStateObj) {
     state = {...newStateObj}
@@ -44,8 +49,12 @@ async function createDeckAndShuffle(stateObj) {
 }
 
 async function dealToEachPlayer(stateObj) {
+    console.log("players are " + stateObj.players.length)
+    console.log("current deck is  " + stateObj.currentDeck)
     for (i = 0; i < stateObj.players.length; i++) {
         stateObj = immer.produce(stateObj, (newState) => {
+            console.log('player hand name is ' + newState.players[i].name)
+            console.log('player hand is ' + newState.players[i].currentHand)
             newState.players[i].currentHand.push(newState.currentDeck[0])
             newState.currentDeck.splice(0, 1)
         })
@@ -65,6 +74,14 @@ async function dealPublicCards(numberCards) {
         await pause(100)
         await updateState(stateObj)
     }
+    return stateObj
+}
+
+async function playerFolds(stateObj, playerIndex) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.players[playerIndex].isStillInHand = false
+    })
+    await updateState(stateObj)
     return stateObj
 }
 
@@ -88,6 +105,14 @@ async function putInBet(stateObj, playerIndex, betSize) {
     return stateObj;
 }
 
+async function makeCurrentPlayer(stateObj, playerIndex) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.currentPlayer = playerIndex
+    })
+    stateObj = await updateState(stateObj)
+    return stateObj
+}
+
 async function putInBlinds(stateObj) {
     let SBIndex = (state.currentDealer < 5) ? state.currentDealer+1 : 0
     let BBIndex = (state.currentDealer < 4) ? state.currentDealer+2 : (state.currentDealer  - 4)
@@ -95,12 +120,16 @@ async function putInBlinds(stateObj) {
     let lojackIndex = (state.currentDealer < 2) ? state.currentDealer+4 : (state.currentDealer  - 2)
     let buttonIndex = (state.currentDealer < 1) ? 5 : (state.currentDealer  - 1)
 
-    stateObj = await nextPlayer(stateObj)
+    stateObj = await makeCurrentPlayer(stateObj, SBIndex)
+
+    
     stateObj = await putInBet(stateObj, SBIndex, 1)
-    await pause(650)
+    await pause(500)
     stateObj = await nextPlayer(stateObj)
+    
     stateObj = await putInBet(stateObj, BBIndex, 3)
-    await pause(650)
+    await pause(500)
+    stateObj = await nextPlayer(stateObj)
     stateObj = immer.produce(stateObj, (newState) => {
         newState.currentPlayer = (BBIndex < 5) ? BBIndex+1 : 0
         newState.players[newState.currentDealer].currentSeat = 0
@@ -131,7 +160,7 @@ async function preFlopAction(stateObj) {
             stateObj = await dealPublicCards(3)
             console.log(stateObj)
             stateObj = await postFlopAction(stateObj)
-            return true
+            return stateObj
         } else if (player.isStillInHand !== false) {
             //if no raise yet
             const callThreshold = player.callwithJunkPreFlopPercentage
@@ -187,7 +216,7 @@ async function preFlopAction(stateObj) {
             newState.currentPlayer = (newState.currentPlayer === 5) ? 0 : newState.currentPlayer+1
             console.log("increased current index to " + newState.currentPlayer)
         })
-        await pause(1500)
+        await pause(500)
         await updateState(stateObj) 
     }
     return stateObj
@@ -211,8 +240,9 @@ async function postFlopAction(stateObj) {
         player = stateObj.players[playerInd];
         if (player.isStillInHand !== false) {
             if (player.name === "player") {
+                stateObj = await makeCurrentPlayer(stateObj, playerIndex)
                 console.log('betting reached player')
-                return true
+                return stateObj
             } else {
                 playerHandRank = getBestPokerHand(player.currentHand.concat(stateObj.publicCards))[1]
                 console.log(player.name + " hand rank is " + playerHandRank)
@@ -349,19 +379,7 @@ async function chooseHoleCardToBeVisiblePokerTable() {
 
     const potDiv = createPotDiv(stateObj)
     const publicCardsDiv = createPublicCardsDiv(stateObj)
-    
-
-    const foldDiv = document.createElement('div');
-    foldDiv.classList.add('action-div');
-    foldDiv.textContent = "Fold"
-    foldDiv.style.top = '10%';
-    foldDiv.style.left = '70%';
-    foldDiv.onclick = function() {
-        console.log('clicked fold div')
-        const playerIndex = state.players.findIndex(player => player.name === "player");
-        state.players[playerIndex].isStillInHand = false;
-        newHand()
-    }
+    let foldDiv = createFoldDiv(stateObj)
 
     const callDiv = document.createElement('div');
     callDiv.classList.add('action-div');
@@ -433,7 +451,8 @@ async function resetHand(stateObj) {
         stateObj = immer.produce(stateObj, (newState) => {
             const indices = stateObj.players.map((obj, index) => obj.isStillInHand ? index : null).filter(index => index !== null);
             winnerindex = indices[Math.floor(Math.random() * indices.length)]
-            newState.players[winnerindex] += newState.currentPot
+            newState.players[winnerindex].stackSize += newState.currentPot
+            console.log (newState.currentPot + " pot given to " + newState.players[winnerindex].name)
         })
     }
     stateObj = immer.produce(stateObj, (newState) => {
@@ -442,6 +461,7 @@ async function resetHand(stateObj) {
             player.currentSeat = (player.currentSeat === 0) ? 5 : player.currentSeat-1
             player.currentBet = 0
             player.isStillInHand = true
+            player.currentHand = []
         })
         
         //
@@ -453,9 +473,7 @@ async function resetHand(stateObj) {
 }
 
 
-async function newHand() {
-    stateObj = {...state}
-    //give pot to random player
+async function newHand(stateObj) {
 
     stateObj = await resetHand(stateObj)
     stateObj = await updateState(stateObj)
