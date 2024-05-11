@@ -10,7 +10,8 @@ function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) 
 
     const playerBottomRowDiv = createDiv('playerTopRowDiv')
     const playerStackDiv = createDiv('playerNameDiv', player.stackSize)
-    const playerBetDiv = createDiv('playerNameDiv', player.currentBet)
+    const playerBetDiv =  (player.hasChecked) ? createDiv('playerNameDiv', "Check") : createDiv('playerNameDiv', player.currentBet)
+    
     playerBottomRowDiv.append(playerStackDiv, playerBetDiv)
 
     const playerCardsDiv = createPlayerCardsDiv(player, cardFunctionString)
@@ -159,9 +160,9 @@ function createRaiseDiv(stateObj) {
         console.log('player raised to ' + state.currentBet)
         stateObj = await nextPlayer(stateObj)
         if (stateObj.publicCards.length === 0) {
-            stateObj = await preFlopAction(stateObj)
+            await preFlopAction(stateObj)
         } else {
-            stateObj = await postFlopAction(stateObj)
+            await postFlopAction(stateObj)
         }
     }
     return RaiseDiv
@@ -177,10 +178,69 @@ function createFoldDiv(stateObj) {
         console.log('clicked fold div')
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
         stateObj = await playerFolds(stateObj, playerIndex)
-        newHand(stateObj)
+        await newHand(stateObj)
     }
-
     return foldDiv
 }
-    
 
+function createCallDiv(stateObj) {
+    const callDiv = document.createElement('div');
+    callDiv.classList.add('action-div');
+    callDiv.textContent = "Call"
+    callDiv.style.top = '10%';
+    callDiv.style.left = '70%';
+    callDiv.onclick = async function() {
+        console.log('clicked call div')
+        console.log("StateObj at onclick", stateObj);
+        const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+        const moneyIn = stateObj.currentBet - stateObj.players[playerIndex].currentBet
+        stateObj = await putInBet(stateObj, playerIndex, moneyIn)
+        stateObj = await nextPlayer(stateObj)
+        
+        if (stateObj.publicCards.length === 0) {
+            console.log("about to trigger preflopaction for call div")
+            await preFlopAction(stateObj)
+        } else {
+            await postFlopAction(stateObj)
+        }
+    }
+    return callDiv
+}
+
+function createBetDiv(stateObj) {
+    const betDiv = document.createElement('div');
+        betDiv.classList.add('action-div');
+        betDiv.textContent = "Bet"
+        betDiv.style.top = '10%';
+        betDiv.style.left = '70%';
+        betDiv.onclick = async function() {
+            console.log('clicked bet div')
+            const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+            const moneyIn = (stateObj.currentPot/2)
+            stateObj = await putInBet(stateObj, playerIndex, moneyIn)
+            stateObj = await nextPlayer(stateObj)
+            await postFlopAction(stateObj)
+        }
+    return betDiv
+}
+
+function createCheckDiv(stateObj) {
+    const checkDiv = document.createElement('div');
+    checkDiv.classList.add('action-div');
+    checkDiv.textContent = "Check"
+    checkDiv.style.top = '10%';
+    checkDiv.style.left = '70%';
+    checkDiv.onclick = async function() {
+        console.log('clicked check div')
+        const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+        stateObj = await playerChecks(stateObj, playerIndex)
+        if (stateObj.publicCards.length === 0) {
+            console.log("preflop action closed")
+            stateObj = await dealPublicCards(stateObj, 3)
+        } else {
+            stateObj = await nextPlayer(stateObj)
+        }
+        await postFlopAction(stateObj)
+    }
+    return checkDiv
+}

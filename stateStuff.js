@@ -15,13 +15,12 @@ state = {
 }
 
 const possibleNames = ["Alex", "Casey", "Charlie", "Dakota", "Emerson", "Finn", "Harper", "Jamie", "Jordan", "Kai", "Morgan", "Parker", "Quinn", "Reese", "Riley", "River", "Rowan", "Skyler", "Taylor"];
-seatPositions = [
+createSeatPositions = [
   "SB",
   "BB",
   "UTG",
   "Lojack",
   "CO",
-  "Dealer"
 ]
 
 function Player() {
@@ -35,6 +34,7 @@ function Player() {
     this.stackSize = 1000; // Arbitrary starting amount
     this.isStillInHand = true;
     this.currentBet = 0;
+    this.hasChecked = false;
 
     this.callwithJunkPreFlopPercentage = Math.random() * 0.4;
     this.trapPercentage = Math.random() * 0.4
@@ -50,7 +50,7 @@ function createPlayers() {
       possibleNames.splice(nameIndex, 1)
       let player = new Player();
       player.name = randomName
-      player.currentSeat = seatPositions[i]
+      player.currentSeat = createSeatPositions[i]
       players.push(player);
     }
     let playerCharacter = new Player();

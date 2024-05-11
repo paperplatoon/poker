@@ -1,8 +1,10 @@
 
+//check if board pairs - if so, opponents don't bet flop
+//bug when clicking callDiv as small blind -> currentBet is only 2?
+//issue with preFlop calling div
 
 
-//fix bet/check/raise/fold divs
-//update checkDiv to be able to check on preflop
+//update checkDiv to be able to check BB on preflop
 //things to do - eventually, update Bet function to change by player (some bluff more etc)
 //add suspicion level to the state; checkForDeath to see if the player loses
 //add a visual indicator for suspicion level
@@ -13,19 +15,21 @@
 
 
 //DONE
-//fix postFlopAction
-//add a fold function using stateObj immer 
-//post flop action incorrectly sets currentBet to 0; dealPublicCards should do that instead
+//fixed moving to next hand - changed index on seatPosition
+//fix bet/check/raise/fold divs
+//dealPublicCards now sets currentPlayer to SB, fixes several bugs
+//bug where if betting reaches player and their raise is called, they auto win the pot
+//postFLopAction bug where if it checks to the player, it automatically checks through
 
 async function updateState(newStateObj) {
     state = {...newStateObj}
-    renderScreen(state)
+    await renderScreen(state)
     return state
 }
 
 async function renderScreen(stateObj) {
     if (stateObj.currentScreen === "chooseVisibleCard") {
-        chooseHoleCardToBeVisiblePokerTable()
+        await chooseHoleCardToBeVisiblePokerTable(stateObj)
     } else if (stateObj.currentScreen === "renderTable") {
         createPokerTable()
     }
@@ -69,10 +73,14 @@ async function dealToEachPlayer(stateObj) {
 }
 
 async function dealPublicCards(stateObj, numberCards) {
+    console.log("dealing " + numberCards + " cards")
+    stateObj = await makeCurrentPlayer(stateObj, "SB")
+
     stateObj = immer.produce(stateObj, (newState) => {
         newState.currentBet = 0;
         newState.players.forEach(player => {
             player.currentBet = 0
+            player.hasChecked = false;
         })
     })
     
@@ -139,22 +147,35 @@ async function putInBlinds(stateObj) {
 }
 
 async function preFlopAction(stateObj) { 
-
+    console.log('starting preflop action')
     for (let i=0; i < stateObj.players.length; i++) {
         //just find the player whose current seat matches state.currentPlayer
         const playerInd = stateObj.players.findIndex(player => player.currentSeat === stateObj.currentPlayer);
         player = stateObj.players[playerInd];
+        //if the current players bet has matched the current bet, then it's time for the flop
         if (player.currentBet === stateObj.currentBet) {
-            console.log("preflop action closed")
-            stateObj = await dealPublicCards(stateObj, 3)
-            console.log(stateObj)
-            stateObj = await postFlopAction(stateObj)
-            return stateObj
+            let playersStillInHand = stateObj.players.filter(player => player.isStillInHand);
+            //if everyone's folded player has won the pot
+            if (playersStillInHand.length === 1) {
+                console.log("currentPlayer wins the pot as everyone folds")
+                stateObj = immer.produce(stateObj, (newState) => {
+                    newState.players[playerInd].stackSize += newState.currentPot
+                    newState.currentPot = 0
+                })
+                stateObj = await newHand(stateObj)
+                return stateObj
+            //otherwise, it's time to see a flop
+            } else {
+                console.log("preflop action closed")
+                stateObj = await dealPublicCards(stateObj, 3)
+                stateObj = await postFlopAction(stateObj)
+            }
         } else if (player.isStillInHand === false) {
             //skip the player because they're no longer in the hand
         } else if (player.name === "player") {
             console.log("you found the player so preflop action stopped")
-            return stateObj
+            console.log("preflopaction:", JSON.stringify(stateObj));
+            return true
         } else {
             //if no raise yet
             const callThreshold = player.callwithJunkPreFlopPercentage
@@ -208,19 +229,17 @@ async function preFlopAction(stateObj) {
         await pause(500)
         await updateState(stateObj) 
     }
-    return stateObj
+    await updateState(stateObj)
 }
 
 async function postFlopAction(stateObj) {
-    //reset bets to 0 for the flop
-    stateObj = await makeCurrentPlayer(stateObj, "SB") 
-
+    console.log('starting postflop action')
+    //reset bets to 0 for the flop 
     for (let i=0; i < stateObj.players.length; i++) {
         const playerInd = stateObj.players.findIndex(player => player.currentSeat === stateObj.currentPlayer);
         player = stateObj.players[playerInd];
-
-        if (player.currentBet === stateObj.currentBet && stateObj.currentBet !== 0) {
-            console.log("postflop action closed")
+        if ( (player.currentBet === stateObj.currentBet && stateObj.currentBet !== 0) || (player.hasChecked === true && stateObj.currentBet === 0)) {
+            console.log("postflop action closed and has player checked - " + player.hasChecked + " and current bet is " + stateObj.currentBet)
             if (stateObj.publicCards.length < 5) {
                 stateObj = await dealPublicCards(stateObj, 1)
                 stateObj = await postFlopAction(stateObj)
@@ -233,7 +252,8 @@ async function postFlopAction(stateObj) {
             //skip the player because they're no longer in the hand
         } else if (player.name === "player") {
             console.log("you found the player so postflop action stopped")
-            return stateObj
+            console.log("postflopoption:", JSON.stringify(stateObj));
+            return true
         } else {
             playerHandRank = getBestPokerHand(player.currentHand.concat(stateObj.publicCards))[1]
             console.log(player.name + " hand rank is " + playerHandRank)
@@ -245,6 +265,7 @@ async function postFlopAction(stateObj) {
                         console.log(player.name + " bets out for half pot: " + stateObj.currentPot/2)
                         stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
                     } else {
+                        stateObj = await playerChecks(stateObj, playerInd)
                         console.log(player.name + " checks as a trap")
                     }
                 } else {
@@ -253,6 +274,7 @@ async function postFlopAction(stateObj) {
                         console.log(player.name + " bluffs out for half pot: " + stateObj.currentPot/2)
                         stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
                     } else {
+                        stateObj = await playerChecks(stateObj, playerInd)
                         console.log(player.name + " checked with a bad hand")
                     }
                 }
@@ -322,8 +344,10 @@ async function postFlopAction(stateObj) {
             }
         }
         stateObj = await nextPlayer(stateObj)
+        await pause(500)
+        await updateState(stateObj) 
     }
-    return stateObj
+    await updateState(stateObj)
 }
     
 
@@ -342,13 +366,12 @@ async function makeCardVisible(stateObj, player, cardNum) {
 }
 
 
-async function chooseHoleCardToBeVisiblePokerTable() {
+async function chooseHoleCardToBeVisiblePokerTable(stateObj) {
     document.body.innerHTML = ''
     // Create table div
     const tableDiv = document.createElement('div');
     tableDiv.id = 'tableDiv';
     document.body.appendChild(tableDiv);
-    stateObj = {...state}
 
     // Create player divs and card divs
     const positions = [
@@ -368,63 +391,16 @@ async function chooseHoleCardToBeVisiblePokerTable() {
     const potDiv = createPotDiv(stateObj)
     const publicCardsDiv = createPublicCardsDiv(stateObj)
     let foldDiv = createFoldDiv(stateObj)
-
-    const callDiv = document.createElement('div');
-    callDiv.classList.add('action-div');
-    callDiv.textContent = "Call"
-    callDiv.style.top = '10%';
-    callDiv.style.left = '70%';
-    callDiv.onclick = async function() {
-        console.log('clicked call div')
-        stateObj = {...state}
-
-        const playerIndex = state.players.findIndex(player => player.name === "player");
-        const moneyIn = stateObj.currentBet - stateObj.players[playerIndex].currentBet
-        stateObj = await putInBet(stateObj, playerIndex, moneyIn)
-        stateObj = await nextPlayer(stateObj)
-        
-        if (stateObj.publicCards.length === 0) {
-            stateObj = await preFlopAction(stateObj)
-        } else {
-            stateObj = await postFlopAction(stateObj)
-        }
-        await renderScreen(stateObj)
-        return stateObj
-    }
-
-    const betDiv = document.createElement('div');
-    betDiv.classList.add('action-div');
-    betDiv.textContent = "Bet"
-    betDiv.style.top = '10%';
-    betDiv.style.left = '70%';
-    betDiv.onclick = function() {
-        console.log('clicked bet div')
-        const playerIndex = state.players.findIndex(player => player.name === "player");
-        const moneyIn = (state.currentPot/2)
-        state.players[playerIndex].currentBet += moneyIn
-        state.currentPot += moneyIn
-        state.players[playerIndex].stackSize -= moneyIn 
-        state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
-        postFlopAction()
-        renderScreen(state)
-    }
-
-    const checkDiv = document.createElement('div');
-    checkDiv.classList.add('action-div');
-    checkDiv.textContent = "Check"
-    checkDiv.style.top = '10%';
-    checkDiv.style.left = '70%';
-    checkDiv.onclick = function() {
-        console.log('clicked check div')
-        state.currentPlayer  = (state.currentPlayer < 5) ? state.currentPlayer + 1 : 0
-        postFlopAction()
-        renderScreen(state)
-    }
-
+    const callDiv = createCallDiv(stateObj)
+    const betDiv = createBetDiv(stateObj)
     let RaiseDiv = createRaiseDiv(stateObj)
-
-    if (state.currentBet === 0) {
+    const checkDiv = createCheckDiv(stateObj)
+    
+    const playerIndex = stateObj.players.findIndex(player => player.name === "player") 
+    if (stateObj.currentBet === 0) {
         document.body.append(checkDiv, betDiv)
+    } else if (stateObj.players[playerIndex] == "BB" && stateObj.currentBet === 3) {
+        document.body.append(checkDiv, RaiseDiv)
     } else {
         document.body.append(foldDiv, callDiv, RaiseDiv)
     }
@@ -445,6 +421,7 @@ async function resetHand(stateObj) {
             player.currentBet = 0
             player.isStillInHand = true
             player.currentHand = []
+            player.hasChecked = false;
         })
         
         //

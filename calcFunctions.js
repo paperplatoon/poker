@@ -297,8 +297,10 @@ seatPositions = [
 async function moveToNextPlayer(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, (newState) => {
         player = newState.players[playerIndex]
+        console.log(player.name + "current seat is " + player.currentSeat)
         const playerSeatIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
-        player.currentSeat = (playerSeatIndex === 5) ? "Dealer" : seatPositions[(playerSeatIndex+1)]  
+        player.currentSeat = (playerSeatIndex === 5) ? "Dealer" : seatPositions[(playerSeatIndex+1)]
+        console.log(player.name + "current seat after is " + player.currentSeat)
     })
     return stateObj
 } 
@@ -317,7 +319,7 @@ async function nextPlayer(stateObj) {
     stateObj = immer.produce(stateObj, async (newState) => {
         //find the seatPositions index of the current Player
         let currentPlayerIndex = seatPositions.findIndex(seatPosition => seatPosition === newState.currentPlayer)
-        newState.currentPlayer = (currentPlayerIndex === 5) ? "SB" : seatPositions[(currentPlayerIndex+1)] 
+        newState.currentPlayer = (currentPlayerIndex === 5) ? "Dealer" : seatPositions[(currentPlayerIndex+1)] 
     })
     return stateObj
 }
@@ -325,6 +327,14 @@ async function nextPlayer(stateObj) {
 async function makeCurrentPlayer(stateObj, seatToMake) {
     stateObj = immer.produce(stateObj, async (newState) => {
         newState.currentPlayer = seatToMake 
+    })
+    await updateState(stateObj)
+    return stateObj
+}
+
+async function playerChecks(stateObj, indexToCheck) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.players[indexToCheck].hasChecked = true 
     })
     await updateState(stateObj)
     return stateObj
@@ -363,9 +373,10 @@ async function determineHandWinner(stateObj) {
     }
     const winnerIndex = stateObj.players.findIndex(player => player.name === playersStillInHand[0].name)
     stateObj = immer.produce(stateObj, (newState) => {
+        winnerStats =  getBestPokerHand(newState.players[winnerIndex].currentHand.concat(newState.publicCards))
         newState.players[winnerIndex].stackSize += newState.currentPot
+        console.log (newState.players[winnerIndex].name + " wins " + newState.currentPot + " with " + winnerStats[0] )
         newState.currentPot = 0;
-        console.log (newState.currentPot + " pot given to " + newState.players[winnerindex].name)
     })
     await updateState(stateObj)
     return stateObj
