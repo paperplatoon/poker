@@ -51,18 +51,14 @@ function createPlayers() {
       let player = new Player();
       player.name = randomName
       player.currentSeat = seatPositions[i]
-      console.log(i + ". initializing player " + player.name + " at position" + seatPositions[i])
-      console.log(JSON.stringify(player));
       players.push(player);
     }
-    console.log(players)
     let playerCharacter = new Player();
     playerCharacter.name = "player"
     playerCharacter.currentSeat = "Dealer"
     playerCharacter.leftCardVisible = true;
     playerCharacter.rightCardVisible = true;
     players.push(playerCharacter);
-    console.log(JSON.stringify(players));
     return players
   }
 

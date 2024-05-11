@@ -225,9 +225,9 @@ function compareHands(hand1, hand2) {
     let bestHand2 = resultsHand2[0]
 
     if (rankHand1 > rankHand2) {
-        return "Hand 1 wins with rank " + rankHand1;
+        return "1 wins with rank " + rankHand1;
     } else if (rankHand2 > rankHand1) {
-        return "Hand 2 wins with rank " + rankHand2;
+        return "2 wins with rank " + rankHand2;
 
     ///NEED SPECIAL LOGIC BECAUSE JUDGING PAIR AND TWO PAIR HANDS AGAINST EACH OTHER ISN'T RIGHT LOL, PROB NOT FULL HOUSE OR THREE/FOUR OF A KIND EITHER
     } else {
@@ -238,13 +238,12 @@ function compareHands(hand1, hand2) {
 
         for (let i = 0; i < ranks1.length; i++) {
             if (ranks1[i] > ranks2[i]) {
-                return "Hand 1 wins with rank " + rankHand1;
+                return "1 wins with rank " + rankHand1;
             } else if (ranks2[i] > ranks1[i]) {
-                return "Hand 2 wins with rank " + rankHand2;
+                return "2 wins with rank " + rankHand2;
             }
         }
-
-        return "It's a tie";
+        return "T";
     }
 }
 
@@ -306,32 +305,67 @@ async function moveToNextPlayer(stateObj, playerIndex) {
 
 //all players have their .currentSeat property updated to next in line
 async function moveButton(stateObj) {
-    stateObj = immer.produce(stateObj, async (newState) => {
-            for (i=0; i < newState.players.length; i++) {
-                stateObj = await moveToNextPlayer(stateObj, i)
-            }
-    })
+    for (i=0; i < stateObj.players.length; i++) {
+        stateObj = await moveToNextPlayer(stateObj, i)
+    }
     await updateState(stateObj)
     return stateObj
 }
 
 //state.currentPlayer goes to the next player
 async function nextPlayer(stateObj) {
-    console.log("original current player is " + stateObj.currentPlayer)
     stateObj = immer.produce(stateObj, async (newState) => {
         //find the seatPositions index of the current Player
         let currentPlayerIndex = seatPositions.findIndex(seatPosition => seatPosition === newState.currentPlayer)
-        console.log("currentPlayerIndex is " + currentPlayerIndex)
         newState.currentPlayer = (currentPlayerIndex === 5) ? "SB" : seatPositions[(currentPlayerIndex+1)] 
-        console.log("next player changed to " + newState.currentPlayer)
     })
-    console.log("next player moved to " + stateObj.currentPlayer)
     return stateObj
 }
 
 async function makeCurrentPlayer(stateObj, seatToMake) {
     stateObj = immer.produce(stateObj, async (newState) => {
-        stateObj.currentPlayer = seatToMake 
+        newState.currentPlayer = seatToMake 
+    })
+    await updateState(stateObj)
+    return stateObj
+}
+
+async function playerFolds(stateObj, playerIndex) {
+    stateObj = immer.produce(stateObj, async (newState) => {
+        newState.players[playerIndex].isStillInHand = false
+        console.log(newState.players[playerIndex].name + " folds") 
+    })
+    await updateState(stateObj)
+    return stateObj
+}
+//need to 
+async function determineHandWinner(stateObj) {
+    let playersStillInHand = stateObj.players.filter(player => player.isStillInHand);
+    while (playersStillInHand.length > 1) {
+        const player1Hand = playersStillInHand[0].currentHand.concat(stateObj.publicCards)
+        const player2Hand = playersStillInHand[1].currentHand.concat(stateObj.publicCards)
+        let compareResult = compareHands(player1Hand, player2Hand)
+
+        if (compareResult[0] === "1") {
+            playersStillInHand.splice(1, 1)
+        } else if (compareResult[0] === "2") {
+            playersStillInHand.splice(0, 1)
+        } else {
+            if (playersStillInHand.length === 2) {
+                console.log("tie = pot should be split!")
+                break
+            } else {
+                const tiedPlayer = playersStillInHand.shift()
+                playersStillInHand.push(tiedPlayer)
+                "tie - moving player to end"
+            }
+        }
+    }
+    const winnerIndex = stateObj.players.findIndex(player => player.name === playersStillInHand[0].name)
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.players[winnerIndex].stackSize += newState.currentPot
+        newState.currentPot = 0;
+        console.log (newState.currentPot + " pot given to " + newState.players[winnerindex].name)
     })
     await updateState(stateObj)
     return stateObj

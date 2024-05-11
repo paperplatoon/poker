@@ -1,14 +1,21 @@
 
+
+
 //fix bet/check/raise/fold divs
 //update checkDiv to be able to check on preflop
 //things to do - eventually, update Bet function to change by player (some bluff more etc)
 //add suspicion level to the state; checkForDeath to see if the player loses
 //add a visual indicator for suspicion level
-//add a fold function using stateObj immer 
+
+//separate out top pair vs middle pair vs bottom pair for hand ranks
+//give each player an individual willDraw level
+
+
 
 //DONE
-//add an indicator for current player's div
-//add resetAfterHand function for new hand
+//fix postFlopAction
+//add a fold function using stateObj immer 
+//post flop action incorrectly sets currentBet to 0; dealPublicCards should do that instead
 
 async function updateState(newStateObj) {
     state = {...newStateObj}
@@ -53,7 +60,6 @@ async function dealToEachPlayer(stateObj) {
     for (i = 0; i < stateObj.players.length; i++) {
         stateObj = immer.produce(stateObj, (newState) => {
             newState.players[i].currentHand.push(newState.currentDeck[0])
-            console.log("dealing " + newState.currentDeck[0] + " to player " + newState.players[i].name)
             newState.currentDeck.splice(0, 1)
         })
         await pause(100)
@@ -62,15 +68,21 @@ async function dealToEachPlayer(stateObj) {
     return stateObj
 }
 
-async function dealPublicCards(numberCards) {
-    stateObj = {...state}
+async function dealPublicCards(stateObj, numberCards) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.currentBet = 0;
+        newState.players.forEach(player => {
+            player.currentBet = 0
+        })
+    })
+    
     for (let i=0; i < numberCards; i++) {
         stateObj = immer.produce(stateObj, (newState) => {
             newState.publicCards.push(newState.currentDeck[0])
-            newState.currentDeck.splice(0, 1)
+            newState.currentDeck.splice(0, 1)   
         })
         await pause(100)
-        await updateState(stateObj)
+        await updateState(stateObj)     
     }
     return stateObj
 }
@@ -127,19 +139,14 @@ async function putInBlinds(stateObj) {
 }
 
 async function preFlopAction(stateObj) { 
-    // const firstIndex = stateObj.players.findIndex(player => player.name === "UTG");
-    // const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-    // let lastIndex = (firstIndex < playerIndex) ? (playerIndex-firstIndex) : (5-firstIndex+1+playerIndex)
-    // lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
 
     for (let i=0; i < stateObj.players.length; i++) {
         //just find the player whose current seat matches state.currentPlayer
         const playerInd = stateObj.players.findIndex(player => player.currentSeat === stateObj.currentPlayer);
         player = stateObj.players[playerInd];
-        console.log("action for " + player.name)
         if (player.currentBet === stateObj.currentBet) {
             console.log("preflop action closed")
-            stateObj = await dealPublicCards(3)
+            stateObj = await dealPublicCards(stateObj, 3)
             console.log(stateObj)
             stateObj = await postFlopAction(stateObj)
             return stateObj
@@ -147,7 +154,7 @@ async function preFlopAction(stateObj) {
             //skip the player because they're no longer in the hand
         } else if (player.name === "player") {
             console.log("you found the player so preflop action stopped")
-            return true
+            return stateObj
         } else {
             //if no raise yet
             const callThreshold = player.callwithJunkPreFlopPercentage
@@ -169,8 +176,7 @@ async function preFlopAction(stateObj) {
                         console.log(player.name + " calls " + moneyIn + " as a bluff")
                     } else {
                         //add fold function
-                        player.isStillInHand = false
-                        console.log(player.name + " folds")
+                        stateObj = await playerFolds(stateObj, playerInd)
                     }
                 }
             } else if (stateObj.currentBet < 25) {
@@ -184,8 +190,7 @@ async function preFlopAction(stateObj) {
                     stateObj = await putInBet(stateObj, playerInd, moneyIn)
                     console.log(player.name + " calls " + moneyIn + " as a bluff")
                 } else {
-                    player.isStillInHand = false
-                    console.log(player.name + " folds")
+                    stateObj = await playerFolds(stateObj, playerInd)
                 }
             } else {
                 if (isHandInRange(player.currentHand, fourBetRange)) {
@@ -195,8 +200,7 @@ async function preFlopAction(stateObj) {
                     stateObj = await putInBet(stateObj, playerInd, moneyIn)
                     console.log(player.name + " calls " + moneyIn + " loosely")
                 } else {
-                    player.isStillInHand = false
-                    console.log(player.name + " folds")
+                    stateObj = await playerFolds(stateObj, playerInd)
                 }
             }
         }
@@ -207,122 +211,121 @@ async function preFlopAction(stateObj) {
     return stateObj
 }
 
-async function postFlopAction(stateObj) { 
-    //find dealer and small blind index
-    const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-    let firstIndex = (stateObj.currentDealer < 5) ? stateObj.currentDealer+1 : 0
+async function postFlopAction(stateObj) {
     //reset bets to 0 for the flop
-    stateObj.currentBet = 0;
-    stateObj.players.forEach(player => {
-        player.currentBet = 0
-    })
-    await updateState(stateObj)
-    let lastIndex = (firstIndex < playerIndex) ? (playerIndex-firstIndex) : (5-firstIndex+1+playerIndex)
-    lastIndex = (playerIndex === firstIndex) ? playerIndex : lastIndex
+    stateObj = await makeCurrentPlayer(stateObj, "SB") 
 
-    for (let i=0; i < lastIndex; i++) {
-        playerInd = stateObj.currentPlayer
+    for (let i=0; i < stateObj.players.length; i++) {
+        const playerInd = stateObj.players.findIndex(player => player.currentSeat === stateObj.currentPlayer);
         player = stateObj.players[playerInd];
-        if (player.isStillInHand !== false) {
-            if (player.name === "player") {
-                stateObj = await makeCurrentPlayer(stateObj, playerIndex)
-                console.log('betting reached player')
-                return stateObj
+
+        if (player.currentBet === stateObj.currentBet && stateObj.currentBet !== 0) {
+            console.log("postflop action closed")
+            if (stateObj.publicCards.length < 5) {
+                stateObj = await dealPublicCards(stateObj, 1)
+                stateObj = await postFlopAction(stateObj)
             } else {
-                playerHandRank = getBestPokerHand(player.currentHand.concat(stateObj.publicCards))[1]
-                console.log(player.name + " hand rank is " + playerHandRank)
-                const bluffOrTrap = Math.random()
-                if (stateObj.currentBet === 0) {
-                    if (playerHandRank>=2) {
-                        //even if player has good hand, they trap sometimes
-                        if (bluffOrTrap > 0.2) {
-                            console.log(player.name + " bets out for half pot: " + stateObj.currentPot/2)
-                           stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
-                        } else {
-                            console.log(player.name + " checks as a trap")
-                        }
+                stateObj = await determineHandWinner(stateObj)
+                stateObj = await newHand(stateObj)
+            }
+            return stateObj
+        } else if (player.isStillInHand === false) {
+            //skip the player because they're no longer in the hand
+        } else if (player.name === "player") {
+            console.log("you found the player so postflop action stopped")
+            return stateObj
+        } else {
+            playerHandRank = getBestPokerHand(player.currentHand.concat(stateObj.publicCards))[1]
+            console.log(player.name + " hand rank is " + playerHandRank)
+            const bluffOrTrap = Math.random()
+            if (stateObj.currentBet === 0) {
+                if (playerHandRank>=2) {
+                    //even if player has good hand, they trap sometimes
+                    if (bluffOrTrap > 0.2) {
+                        console.log(player.name + " bets out for half pot: " + stateObj.currentPot/2)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
                     } else {
-                        //if player has bad hand, they bluff at pot sometimes
-                        if (bluffOrTrap < 0.2) {
-                            console.log(player.name + " bluffs out for half pot: " + stateObj.currentPot/2)
-                           await putInBet(stateObj, playerInd, stateObj.currentPot/2)
-                        } else {
-                            console.log(player.name + " checked with a bad hand")
-                        }
+                        console.log(player.name + " checks as a trap")
                     }
-                } else if (state.currentBet < 30) {
-                    if (playerHandRank >= 3) {
-                        //even if player has good hand, they trap sometimes
-                        if (bluffOrTrap > 0.2) {
-                            console.log(player.name + " raises for " + stateObj.currentBet*2)
-                           await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
-                        } else {
-                           await putInBet(stateObj, playerInd, stateObj.currentBet)
-                            console.log(player.name + " calls for " + stateObj.currentBet)
-                        } 
-                    } else if (playerHandRank>1) {
-                        //even if player has decent hand, they still fold sometimes
-                        if (bluffOrTrap > 0.1) {
-                            console.log(player.name + " calls for " + stateObj.currentBet)
-                           await putInBet(stateObj, playerInd, stateObj.currentBet) 
-                        } else {
-                            console.log(player.name + " folded with a decent hand")
-                            player.isStillInHand = false
-                        } 
-                    } else {
-                        //players sometimes call even with terrible hand
-                        if (bluffOrTrap < 0.1) {
-                            console.log(player.name + " calls as bluff for " + stateObj.currentBet)
-                           await putInBet(stateObj, playerInd, stateObj.currentBet) 
-                        } else {
-                            player.isStillInHand = false
-                            console.log(player.name + " folded with a bad hand")
-                        }
-                    }
-                //in a big pot, players need a good hand to stick around
                 } else {
-                    if (playerHandRank >= 4) {
-                        //even if player has good hand, they trap sometimes
-                        if (bluffOrTrap > 0.1) {
-                            console.log(player.name + " raises for " + stateObj.currentBet*2)
-                           await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
-                        } else {
-                           await putInBet(stateObj, playerInd, stateObj.currentBet)
-                            console.log(player.name + " calls as a trap for " + stateObj.currentBet)
-                        } 
-                    } else if (playerHandRank == 3) {
-                        //players trap slightly more often with draws or two pair
-                        if (bluffOrTrap > 0.25) {
-                            console.log(player.name + " raises for " + stateObj.currentBet*2)
-                           await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
-                        } else {
-                           await putInBet(stateObj, playerInd, stateObj.currentBet)
-                            console.log(player.name + " calls as a trap for " + stateObj.currentBet)
-                        } 
-                    } else if (playerHandRank > 1) {
-                        //even if player has a pair, they still fold sometimes
-                        if (bluffOrTrap > 0.4) {
-                            console.log(player.name + " calls for " + stateObj.currentBet)
-                           await putInBet(stateObj, playerInd, stateObj.currentBet) 
-                        } else {
-                            console.log(player.name + " folded with a decent hand")
-                            player.isStillInHand = false
-                        } 
+                    //if player has bad hand, they bluff at pot sometimes
+                    if (bluffOrTrap < 0.2) {
+                        console.log(player.name + " bluffs out for half pot: " + stateObj.currentPot/2)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
                     } else {
-                        //players fold with nothing if the pot is big
-                        console.log(player.name + " folded with nothing")
-                        player.isStillInHand = false
+                        console.log(player.name + " checked with a bad hand")
                     }
                 }
+            } else if (stateObj.currentBet < 30) {
+                if (playerHandRank >= 3) {
+                    //even if player has good hand, they trap sometimes
+                    if (bluffOrTrap > 0.2) {
+                        console.log(player.name + " raises for " + stateObj.currentBet*2)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
+                    } else {
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
+                        console.log(player.name + " calls for " + stateObj.currentBet)
+                    } 
+                } else if (playerHandRank>1) {
+                    //even if player has decent hand, they still fold sometimes
+                    if (bluffOrTrap > 0.1) {
+                        console.log(player.name + " calls for " + stateObj.currentBet)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet) 
+                    } else {
+                        console.log(player.name + " folded with a decent hand")
+                        stateObj = await playerFolds(stateObj, playerInd)
+                    } 
+                } else {
+                    //players sometimes call even with terrible hand
+                    if (bluffOrTrap < 0.1) {
+                        console.log(player.name + " calls as bluff for " + stateObj.currentBet)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet) 
+                    } else {
+                        stateObj = await playerFolds(stateObj, playerInd)
+                        console.log(player.name + " folded with a bad hand")
+                    }
+                }
+            //in a big pot, players need a good hand to stick around
+            } else {
+                if (playerHandRank >= 4) {
+                    //even if player has good hand, they trap sometimes
+                    if (bluffOrTrap > 0.1) {
+                        console.log(player.name + " raises for " + stateObj.currentBet*2)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
+                    } else {
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
+                        console.log(player.name + " calls as a trap for " + stateObj.currentBet)
+                    } 
+                } else if (playerHandRank == 3) {
+                    //players trap slightly more often with draws or two pair
+                    if (bluffOrTrap > 0.25) {
+                        console.log(player.name + " raises for " + stateObj.currentBet*2)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
+                    } else {
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
+                        console.log(player.name + " calls as a trap for " + stateObj.currentBet)
+                    } 
+                } else if (playerHandRank > 1) {
+                    //even if player has a pair, they still fold sometimes
+                    if (bluffOrTrap > 0.4) {
+                        console.log(player.name + " calls for " + stateObj.currentBet)
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet) 
+                    } else {
+                        console.log(player.name + " folded with a decent hand")
+                        stateObj = await playerFolds(stateObj, playerInd)
+                    } 
+                } else {
+                    //players fold with nothing if the pot is big
+                    console.log(player.name + " folded with nothing")
+                    stateObj = await playerFolds(stateObj, playerInd)
+                }
             }
-        } else {
-            console.log(player.name + " is folded; moving to next")
         }
         stateObj = await nextPlayer(stateObj)
-        console.log("increased current index to " + state.currentPlayer)
     }
     return stateObj
 }
+    
 
 async function makeCardVisible(stateObj, player, cardNum) {
     console.log("trggering makeCardvisible for player " + player.name)
@@ -376,12 +379,9 @@ async function chooseHoleCardToBeVisiblePokerTable() {
         stateObj = {...state}
 
         const playerIndex = state.players.findIndex(player => player.name === "player");
-        console.log("player index for caldvi is " + playerIndex)
         const moneyIn = stateObj.currentBet - stateObj.players[playerIndex].currentBet
         stateObj = await putInBet(stateObj, playerIndex, moneyIn)
-        stateObj = immer.produce(stateObj, (newState) => {
-            newState.currentPlayer  = (newState.currentPlayer < 5) ? newState.currentPlayer + 1 : 0
-        })
+        stateObj = await nextPlayer(stateObj)
         
         if (stateObj.publicCards.length === 0) {
             stateObj = await preFlopAction(stateObj)
