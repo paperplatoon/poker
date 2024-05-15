@@ -8,6 +8,7 @@ state = {
     currentPot: 0,
     currentDealer: 5,
     currentPlayer: "SB",
+    actionOnPlayer: false,
 
     currentDeck: [],
     currentScreen: "chooseVisibleCard",

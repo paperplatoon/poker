@@ -2,12 +2,22 @@ function getBestPokerHand(cards) {
     let bestHand = [];
     let bestHandRank = -1;
 
-    //sort cards from high to low to make sure that best hands start highest
-    cards.sort((a, b) => {
-        let rankA = getCardRank(a);
-        let rankB = getCardRank(b);
-        return rankB - rankA;
-    });
+    let boardCardsOnly = [];
+    if (cards.length  === 5) {
+        boardCardsOnly = cards.slice(-3)
+    } else if (cards.length === 6) {
+        boardCardsOnly = cards.slice(-4)
+    } else {
+        boardCardsOnly = cards.slice(-5)
+    }
+    console.log('board cards only are ' + boardCardsOnly)
+
+    // //sort cards from high to low to make sure that best hands start highest
+    // cards.sort((a, b) => {
+    //     let rankA = getCardRank(a);
+    //     let rankB = getCardRank(b);
+    //     return rankB - rankA;
+    // });
 
     // Generate all combinations of 5 cards
     let cardHandLength = cards.length
@@ -39,6 +49,11 @@ function getBestPokerHand(cards) {
 
     if (bestHandRank === 8 || bestHandRank === 7 || bestHandRank === 4 || bestHandRank === 3 || bestHandRank === 2) { 
         bestHand = putPairedCardsFirst(bestHand)     
+    }
+
+    let bestBoardRank = evaluatePokerHand(boardCardsOnly) 
+    if (bestBoardRank === bestHandRank) {
+        bestHandRank = 1
     }
 
     return [bestHand, bestHandRank];
@@ -87,7 +102,9 @@ function putPairedCardsFirst(cardArray) {
     return duplicates.concat(nonDuplicates);
 }
 
+//check if first two cards are needed for the hand; if not, return a rank of 1
 function evaluatePokerHand(hand) {
+
     // Sort the hand by rank - works
     hand.sort((a, b) => {
         let rankA = getCardRank(a);
@@ -95,11 +112,20 @@ function evaluatePokerHand(hand) {
         return rankA - rankB;
     });
 
-    let isFlush = isHandFlush(hand);
-    let isStraight = isHandStraight(hand);
+    let isFlush = false;
+    let isStraight = false;
+    let isHandDraw = false;
+
+    if (hand.length === 5) {
+        isFlush = isHandFlush(hand);
+        isStraight = isHandStraight(hand);
+    } else if (hand.length >= 4) {
+        isHandDraw = isADraw(hand) 
+    }
+    
     let ranks = getCardRanks(hand);
     let rankCounts = getRankCounts(ranks);
-    let isHandDraw = isADraw(hand) 
+    
 
     if (isFlush && isStraight) {
         if (ranks[0] === 10) {
@@ -156,15 +182,14 @@ function getCardSuit(card) {
 
 function isHandFlush(hand) {
     let suit = getCardSuit(hand[0]);
-    let isFlush = hand.every(card => getCardSuit(card) === suit);
-    return isFlush;
+    return hand.every(card => getCardSuit(card) === suit)
 }
 
 function isHandStraight(hand) {
     let ranks = getCardRanks(hand);
     let minRank = Math.min(...ranks);
     let maxRank = Math.max(...ranks);
-    return maxRank - minRank === 4 && new Set(ranks).size === 5;
+    return (maxRank - minRank === 4 && new Set(ranks).size === 5);
 }
 
 function isADraw(hand) {
@@ -297,10 +322,8 @@ seatPositions = [
 async function moveToNextPlayer(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, (newState) => {
         player = newState.players[playerIndex]
-        console.log(player.name + "current seat is " + player.currentSeat)
         const playerSeatIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
         player.currentSeat = (playerSeatIndex === 5) ? "Dealer" : seatPositions[(playerSeatIndex+1)]
-        console.log(player.name + "current seat after is " + player.currentSeat)
     })
     return stateObj
 } 
@@ -340,6 +363,14 @@ async function playerChecks(stateObj, indexToCheck) {
     return stateObj
 }
 
+async function actionOnPlayer(stateObj, changeStatus) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.actionOnPlayer = changeStatus 
+    })
+    await updateState(stateObj)
+    return stateObj
+}
+
 async function playerFolds(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, async (newState) => {
         newState.players[playerIndex].isStillInHand = false
@@ -367,7 +398,7 @@ async function determineHandWinner(stateObj) {
             } else {
                 const tiedPlayer = playersStillInHand.shift()
                 playersStillInHand.push(tiedPlayer)
-                "tie - moving player to end"
+                console.log("tie - moving player to end")
             }
         }
     }

@@ -154,11 +154,13 @@ function createRaiseDiv(stateObj) {
     RaiseDiv.style.top = '10%';
     RaiseDiv.style.left = '70%';
     RaiseDiv.onclick = async function() {
+        stateObj = {...state}
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
         const moneyIn = (stateObj.currentBet - stateObj.players[playerIndex].currentBet) * 3
         stateObj = await putInBet(stateObj, playerIndex, moneyIn)
         console.log('player raised to ' + state.currentBet)
         stateObj = await nextPlayer(stateObj)
+        stateObj = await actionOnPlayer(stateObj, false)
         if (stateObj.publicCards.length === 0) {
             await preFlopAction(stateObj)
         } else {
@@ -176,6 +178,7 @@ function createFoldDiv(stateObj) {
     foldDiv.style.left = '70%';
     foldDiv.onclick = async function() {
         console.log('clicked fold div')
+        stateObj = await actionOnPlayer(stateObj, false)
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
         stateObj = await playerFolds(stateObj, playerIndex)
         await newHand(stateObj)
@@ -190,12 +193,14 @@ function createCallDiv(stateObj) {
     callDiv.style.top = '10%';
     callDiv.style.left = '70%';
     callDiv.onclick = async function() {
+        stateObj = {...state}
         console.log('clicked call div')
         console.log("StateObj at onclick", stateObj);
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
         const moneyIn = stateObj.currentBet - stateObj.players[playerIndex].currentBet
         stateObj = await putInBet(stateObj, playerIndex, moneyIn)
         stateObj = await nextPlayer(stateObj)
+        stateObj = await actionOnPlayer(stateObj, false)
         
         if (stateObj.publicCards.length === 0) {
             console.log("about to trigger preflopaction for call div")
@@ -214,11 +219,13 @@ function createBetDiv(stateObj) {
         betDiv.style.top = '10%';
         betDiv.style.left = '70%';
         betDiv.onclick = async function() {
+            stateObj = {...state}
             console.log('clicked bet div')
             const playerIndex = stateObj.players.findIndex(player => player.name === "player");
             const moneyIn = (stateObj.currentPot/2)
             stateObj = await putInBet(stateObj, playerIndex, moneyIn)
             stateObj = await nextPlayer(stateObj)
+            stateObj = await actionOnPlayer(stateObj, false)
             await postFlopAction(stateObj)
         }
     return betDiv
@@ -231,7 +238,9 @@ function createCheckDiv(stateObj) {
     checkDiv.style.top = '10%';
     checkDiv.style.left = '70%';
     checkDiv.onclick = async function() {
+        stateObj = {...state}
         console.log('clicked check div')
+        stateObj = await actionOnPlayer(stateObj, false)
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
         stateObj = await playerChecks(stateObj, playerIndex)
         if (stateObj.publicCards.length === 0) {
