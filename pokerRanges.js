@@ -42,11 +42,15 @@ let looseAggressivePlayer = {
     "wontCallRaiseThreshold": Math.floor(Math.random() * (120 - 40 + 1) + 40),
     //flop
     "MinRankToContinueOnFlop": 1,
+    "trapFlopPercentage": Math.random() * 0.5,
     "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (40 - 20 + 1) + 20),
+    "BluffFlopPercentage": Math.random() * 1.2,
+    "minRankToRaiseOnFlop": 3,
     "chanceOfRaisingWithDraw": Math.random(),
     "chanceofCallingWithDraw": Math.random() * 1.2,
     "ThresholdForFoldingEvenWithDraw": Math.floor(Math.random() * (200 - 100 + 1) + 100),
     "ThresholdForFoldWithLessThanTrips": Math.floor(Math.random() * (200 - 80 + 1) + 80),
+    "HeroCallPercentage": Math.random() * 1.1,
 }
 
 let tightAggressivePlayer = {
@@ -64,12 +68,16 @@ let tightAggressivePlayer = {
     "WontFourBetThreshold": Math.floor(Math.random() * (175 - 75 + 1) + 75),
     "wontCallRaiseThreshold": Math.floor(Math.random() * (50 - 30 + 1) + 30),
     //flop
-    "RankcontinueOnFlopWithArray": [],
+    "RankcontinueOnFlopWithArray": Math.floor(Math.random() * (3 - 2 + 1) + 2),
+    "trapFlopPercentage": Math.random() * 0.5,
     "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (20 - 5 + 1) + 5),
+    "BluffFlopPercentage": Math.random() * 0.6,
+    "minRankToRaiseOnFlop": 4,
     "chanceOfRaisingWithDraw": Math.random() * 0.3,
     "chanceofCallingWithDraw": Math.random() * 0.75,
     "ThresholdForFoldingEvenWithDraw": Math.floor(Math.random() * (65 - 30 + 1) + 30),
     "ThresholdForFoldWithLessThanTrips": Math.floor(Math.random() * (100 - 45 + 1) + 45),
+    "HeroCallPercentage": Math.random() * 0.6,
 }
 
 let loosePassivePlayer = {
@@ -90,11 +98,15 @@ let loosePassivePlayer = {
     "wontCallRaiseThreshold": Math.floor(Math.random() * (100 - 50 + 1) + 50),
     //flop
     "MinRankToContinueOnFlop": Math.floor(Math.random() * (3 - 2 + 1) + 2),
+    "trapFlopPercentage": Math.random() * 1.2,
     "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (45 - 20 + 1) + 20),
+    "BluffFlopPercentage": Math.random() * 0.2,
+    "minRankToRaiseOnFlop": 4,
     "chanceOfRaisingWithDraw": Math.random()* 0.1,
     "chanceofCallingWithDraw": Math.random() * 1.3,
     "ThresholdForFoldingEvenWithDraw": Math.floor(Math.random() * (200 - 90 + 1) + 90),
     "ThresholdForFoldWithLessThanTrips": Math.floor(Math.random() * (200 - 90 + 1) + 90),
+    "HeroCallPercentage": Math.random() * 1.2,
 }
 
 let potentialPlayerDetailsArrays = [tightAggressivePlayer, looseAggressivePlayer, loosePassivePlayer]

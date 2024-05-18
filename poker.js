@@ -3,17 +3,14 @@
 //bug when clicking callDiv as small blind -> currentBet is only 2?
 //raise div doesn't work if player is big blind lmfao
 //implement bet slider
+//separate out top pair vs middle pair vs bottom pair for hand ranks
+//give each player an individual willDraw level
 
-//sometimes even tight players limp in late position
-
-
-//update checkDiv to be able to check BB on preflop
-//things to do - eventually, update Bet function to change by player (some bluff more etc)
 //add suspicion level to the state; checkForDeath to see if the player loses
 //add a visual indicator for suspicion level
 
-//separate out top pair vs middle pair vs bottom pair for hand ranks
-//give each player an individual willDraw level
+
+
 
 
 async function updateState(newStateObj) {
@@ -205,14 +202,18 @@ async function preFlopAction(stateObj) {
                     if (isHandInRange(player.currentHand, player.playerDetails['raiseFirstInArray'])) {
                         if (callValue < player.playerDetails['trapPreflopPercentage']) {
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                            console.log(player.name + " is trapping")
                         } else {
                             stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
+                            console.log(player.name + " is raising with RFI")
                         }
                     } else if (isHandInRange(player.currentHand, player.playerDetails['limpArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                        console.log(player.name + " is limping")
                     } else {
                         if (willCall) {
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                            console.log(player.name + " is limping with crap")
                         } else {
                             stateObj = await playerFolds(stateObj, playerInd)
                         }
@@ -220,35 +221,39 @@ async function preFlopAction(stateObj) {
                 } else if (stateObj.currentBet < player.playerDetails['WontRaisewithReRaiseThreshold']) {
                     if (isHandInRange(player.currentHand, player.playerDetails['reRaisePreflopArray'])) {
                         if (callValue < player.playerDetails['trapPreflopPercentage']) {
+                            console.log(player.name + " is trapping instead of re raising")
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
                         } else {
+                            console.log(player.name + " is raising with re-raise range")
                             stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
                         }
                     } else if (isHandInRange(player.currentHand, player.playerDetails['callRaisePreFlopArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
-                    } else if ((callValue*2 < callThreshold)) {
-                        if (moneyIn < player.playerDetails['wontCallRaiseThreshold']) {
-                            stateObj = await putInBet(stateObj, playerInd, moneyIn)
-                        } else {
-                            stateObj = await playerFolds(stateObj, playerInd)
-                        }
+                        console.log(player.name + " is calling with their range")
+                    } else if ((callValue*2 < callThreshold && stateObj.currentBet < player.playerDetails['tooRichForJunkCallPreflopThreshold'])) {
+                        stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                        console.log(player.name + " is calling with crap cuz of cheap price")
                     } else {
                         stateObj = await playerFolds(stateObj, playerInd)
                     }
                 } else if (stateObj.currentBet < player.playerDetails['WontFourBetThreshold']) {
                     if (isHandInRange(player.currentHand, player.playerDetails['fourBetPreflopArray'])) {
                         if (callValue < player.playerDetails['trapPreflopPercentage']) {
+                            console.log(player.name + " is trapping with a 4bet hand")
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
                         } else {
+                            console.log(player.name + " is raising with a 4bet hand")
                             stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
                         }
                     } else if (isHandInRange(player.currentHand, player.playerDetails['reRaisePreflopArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                        console.log(player.name + " is calling with a really good hand bc the pot is pricey")
                     }else {
                         stateObj = await playerFolds(stateObj, playerInd)
                     }
                 } else {
                     if (isHandInRange(player.currentHand, player.playerDetails['fourBetPreflopArray'])) {
+                        console.log(player.name + " is calling with a premium")
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
                     } else {
                             stateObj = await playerFolds(stateObj, playerInd)
@@ -297,86 +302,95 @@ async function postFlopAction(stateObj) {
                 console.log(player.name + " hand rank is " + playerHandRank)
                 const bluffOrTrap = Math.random()
                 if (stateObj.currentBet === 0) {
-                    if (playerHandRank>=2) {
+                    if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
                         //even if player has good hand, they trap sometimes
-                        if (bluffOrTrap > 0.2) {
-                            console.log(player.name + " bets out for half pot: " + stateObj.currentPot/2)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
+                        if (bluffOrTrap > player.playerDetails['trapFlopPercentage']) {
+                            if (stateObj.currentPot >= player.playerDetails['ThresholdForFoldWithLessThanTrips']) {
+                                console.log(player.name + " is betting out with a decent hand for cheap cuz pot is high ")
+                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentPot/3.5))    
+                            } else {
+                                console.log(player.name + " is betting out with a decent hand")
+                                stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
+                            }
                         } else {
+                            console.log(player.name + " is checking with a bad hand")
                             stateObj = await playerChecks(stateObj, playerInd)
-                            console.log(player.name + " checks as a trap")
                         }
                     } else {
                         //if player has bad hand, they bluff at pot sometimes
-                        if (bluffOrTrap < 0.2) {
-                            console.log(player.name + " bluffs out for half pot: " + stateObj.currentPot/2)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
+                        if (bluffOrTrap < player.playerDetails['BluffFlopPercentage']) {
+                            if (stateObj.currentPot >= player.playerDetails['ThresholdForFoldWithLessThanTrips']) {
+                                console.log(player.name + " is bluffing cheap cuz the pot is high")
+                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentPot/3.5))    
+                            } else {
+                                console.log(player.name + " is bluffing")
+                                stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
+                            }
                         } else {
+                            console.log(player.name + " is checking with a bad hand")
                             stateObj = await playerChecks(stateObj, playerInd)
-                            console.log(player.name + " checked with a bad hand")
                         }
                     }
-                } else if (stateObj.currentBet < 30) {
-                    if (playerHandRank >= 3) {
+                } else if (stateObj.currentBet < player.playerDetails['tooRichForJunkCallFlopThreshold']) {
+                    if (playerHandRank >= player.playerDetails['minRankToRaiseOnFlop']) {
                         //even if player has good hand, they trap sometimes
-                        if (bluffOrTrap > 0.2) {
-                            console.log(player.name + " raises for " + stateObj.currentBet*2)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
+                        if (bluffOrTrap > player.playerDetails['trapFlopPercentage']) {
+                            console.log(player.name + " is raising with a good hand")
+                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentPot * Math.floor(Math.random() * (3 - 2 + 1) + 2)))
                         } else {
+                            console.log(player.name + " is trapping with a good raise hand")
                             stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
-                            console.log(player.name + " calls for " + stateObj.currentBet)
-                        } 
-                    } else if (playerHandRank>1) {
-                        //even if player has decent hand, they still fold sometimes
-                        if (bluffOrTrap > 0.1) {
-                            console.log(player.name + " calls for " + stateObj.currentBet)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet) 
-                        } else {
-                            console.log(player.name + " folded with a decent hand")
-                            stateObj = await playerFolds(stateObj, playerInd)
-                        } 
+                        }
+                    } else if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
+                        //player always calls small bet if they have a good hand but not great
+                        console.log(player.name + " is calling with a decent hand")
+                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                     } else {
-                        //players sometimes call even with terrible hand
-                        if (bluffOrTrap < 0.1) {
-                            console.log(player.name + " calls as bluff for " + stateObj.currentBet)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet) 
+                        //if player has bad hand, they bluff at pot sometimes
+                        //YOU ARE HERE
+                        if ((bluffOrTrap * 3) < player.playerDetails['BluffFlopPercentage']) {
+                            console.log(player.name + " is raising as a bluff with a crap hand")
+                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentPot * Math.floor(Math.random() * (3 - 2 + 1) + 2)))   
                         } else {
-                            stateObj = await playerFolds(stateObj, playerInd)
-                            console.log(player.name + " folded with a bad hand")
+                            console.log(player.name + " is hero calling with a bad hand cuz the pot is cheap")
+                            if (bluffOrTrap < player.playerDetails['HeroCallPercentage']) {
+                                stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
+                            } else {
+                                console.log(player.name + " is folding even tho pot is cheap")
+                                stateObj = await playerFolds(stateObj, playerInd)
+                            }
                         }
                     }
-                //in a big pot, players need a good hand to stick around
+                } else if (stateObj.currentBet < player.playerDetails['ThresholdForFoldWithLessThanTrips']) {
+                    if (playerHandRank >= player.playerDetails['minRankToRaiseOnFlop']) {
+                        console.log(player.name + " is calling with a solid but not amazing hand")
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
+                    } else if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
+                        if ((bluffOrTrap * 2) < player.playerDetails['HeroCallPercentage']) {
+                            console.log(player.name + " is hero calling even though the pot is big bc they have a decent hand")
+                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
+                        } else {
+                            console.log(player.name + " is folding even with a decent hand cuz pot is big")
+                            stateObj = await playerFolds(stateObj, playerInd)
+                        }
+                    } else {
+                        console.log(player.name + " is folding with crap")
+                        stateObj = await playerFolds(stateObj, playerInd)
+                    }
                 } else {
-                    if (playerHandRank >= 4) {
-                        //even if player has good hand, they trap sometimes
-                        if (bluffOrTrap > 0.1) {
-                            console.log(player.name + " raises for " + stateObj.currentBet*2)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
-                        } else {
+                    if (playerHandRank >= player.playerDetails['minRankToRaiseOnFlop']) {
+                        console.log(player.name + " is calling even tho bet is huge cuz they have a good hand")
+                        stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
+                    } else if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
+                        if ((bluffOrTrap * 4) < player.playerDetails['HeroCallPercentage']) {
+                            console.log(player.name + " is hero calling with a decent hand even tho pot is huge")
                             stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
-                            console.log(player.name + " calls as a trap for " + stateObj.currentBet)
-                        } 
-                    } else if (playerHandRank == 3) {
-                        //players trap slightly more often with draws or two pair
-                        if (bluffOrTrap > 0.25) {
-                            console.log(player.name + " raises for " + stateObj.currentBet*2)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet*2) 
                         } else {
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
-                            console.log(player.name + " calls as a trap for " + stateObj.currentBet)
-                        } 
-                    } else if (playerHandRank > 1) {
-                        //even if player has a pair, they still fold sometimes
-                        if (bluffOrTrap > 0.4) {
-                            console.log(player.name + " calls for " + stateObj.currentBet)
-                            stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet) 
-                        } else {
-                            console.log(player.name + " folded with a decent hand")
+                            console.log(player.name + " is folding with a decent hand cuz pot is huge")
                             stateObj = await playerFolds(stateObj, playerInd)
-                        } 
+                        }
                     } else {
-                        //players fold with nothing if the pot is big
-                        console.log(player.name + " folded with nothing")
+                        console.log(player.name + " is folding with crap")
                         stateObj = await playerFolds(stateObj, playerInd)
                     }
                 }
