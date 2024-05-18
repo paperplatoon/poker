@@ -54,6 +54,8 @@ function getBestPokerHand(cards) {
     let bestBoardRank = evaluatePokerHand(boardCardsOnly) 
     if (bestBoardRank === bestHandRank) {
         bestHandRank = 1
+    } else if (bestBoardRank === 2 && bestHandRank === 3) {
+        bestHandRank = 2
     }
 
     return [bestHand, bestHandRank];
@@ -411,4 +413,16 @@ async function determineHandWinner(stateObj) {
     })
     await updateState(stateObj)
     return stateObj
+}
+
+//winner should flash animation
+async function givePotToPlayer(stateObj, playerIndex) {
+    console.log(stateObj.players[playerIndex].name +  " has won the pot - everyone folds")
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.players[playerIndex].stackSize += newState.currentPot
+        newState.currentPot = 0
+    })
+    pause(1000)
+    await updateState(stateObj)
+    return stateObj;
 }

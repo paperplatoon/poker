@@ -23,25 +23,86 @@ let highKings = K9o.concat(K8o, K7o, Q9o)
 
 
 //createPlayer to actually roll the random numbers
-//plays tightly, traps rarely, bluffs occasionally
-let tightAggressivePlayer = {
+//at some point need to CheckForNuts
+let looseAggressivePlayer = {
     
     //limp
-    "limpArray": [lowSuitedConnectors.concat(suitedKings, suitedQueens, highOffsuitAces, highKings, lowSuitedConnectors, highSingleGapSuited, mediumSingleGapSuited)],
+    "limpArray": lowOffsuitConnectors.concat(suitedTens, suitedJacks),
     "callwithJunkPreFlopPercentage":  Math.random() * 0.1,
+    "tooRichForJunkCallPreflopThreshold": Math.floor(Math.random() * (14 - 8 + 1) + 8),
     "trapPreflopPercentage": Math.random() * 0.2,
     //raising
-    "raiseFirstInArray": [premiumHands.concat(goodPocketPairs, suitedBroadway, suitedAces, offsuitBroadway, mediumSuitedConnectors, lowMediumPocketPairs) ],
-    "reRaisePreflopArray": [goodPocketPairs.concat(suitedBroadway, suitedAces)],
-    "fourBetPreflopArray": [premiumHands],
-    "callRaiseWithRFI": Math.random(),
+    "raiseFirstInArray": premiumHands.concat(goodPocketPairs, suitedBroadway, suitedAces, offsuitBroadway, mediumSuitedConnectors, lowSuitedConnectors, lowMediumPocketPairs,
+        suitedQueens, suitedKings, suitedAces, highOffsuitAces, highKings),
+    "callRaisePreFlopArray": lowSuitedConnectors.concat(lowMediumPocketPairs, highSingleGapSuited, mediumSingleGapSuited, suitedQueens,suitedKings, suitedJacks, highKings, highOffsuitAces, suitedTens),
+    "reRaisePreflopArray": goodPocketPairs.concat(suitedBroadway, suitedAces, offsuitBroadway, mediumSuitedConnectors),
+    "WontRaisewithReRaiseThreshold": Math.floor(Math.random() * (75 - 45 + 1) + 45),
+    "fourBetPreflopArray": premiumHands.concat(suitedBroadway, goodPocketPairs),
+    "WontFourBetThreshold": Math.floor(Math.random() * (200 - 120 + 1) + 120),
+    "wontCallRaiseThreshold": Math.floor(Math.random() * (120 - 40 + 1) + 40),
     //flop
-    "continueOnFlopWithArray": [],
-    "chanceOfRaisingWithDraw": [],
-    "chaneofCallingWithDraw": [], 
-
-
+    "MinRankToContinueOnFlop": 1,
+    "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (40 - 20 + 1) + 20),
+    "chanceOfRaisingWithDraw": Math.random(),
+    "chanceofCallingWithDraw": Math.random() * 1.2,
+    "ThresholdForFoldingEvenWithDraw": Math.floor(Math.random() * (200 - 100 + 1) + 100),
+    "ThresholdForFoldWithLessThanTrips": Math.floor(Math.random() * (200 - 80 + 1) + 80),
 }
+
+let tightAggressivePlayer = {
+    //limp
+    "limpArray": lowSuitedConnectors.concat(suitedKings, suitedQueens, highOffsuitAces, highKings, lowSuitedConnectors, highSingleGapSuited, mediumSingleGapSuited),
+    "callwithJunkPreFlopPercentage":  Math.random() * 0.1,
+    "tooRichForJunkCallPreflopThreshold": Math.floor(Math.random() * (9 - 3 + 1) + 3),
+    "trapPreflopPercentage": Math.random() * 0.3,
+    //raising
+    "raiseFirstInArray": premiumHands.concat(goodPocketPairs, suitedBroadway, suitedAces, offsuitBroadway, mediumSuitedConnectors, lowMediumPocketPairs),
+    "callRaisePreFlopArray": mediumSuitedConnectors.concat(lowMediumPocketPairs, suitedKings, offsuitBroadway, suitedAces),
+    "reRaisePreflopArray": goodPocketPairs.concat(suitedBroadway, premiumHands),
+    "WontRaisewithReRaiseThreshold": Math.floor(Math.random() * (60 - 30 + 1) + 30),
+    "fourBetPreflopArray": premiumHands,
+    "WontFourBetThreshold": Math.floor(Math.random() * (175 - 75 + 1) + 75),
+    "wontCallRaiseThreshold": Math.floor(Math.random() * (50 - 30 + 1) + 30),
+    //flop
+    "RankcontinueOnFlopWithArray": [],
+    "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (20 - 5 + 1) + 5),
+    "chanceOfRaisingWithDraw": Math.random() * 0.3,
+    "chanceofCallingWithDraw": Math.random() * 0.75,
+    "ThresholdForFoldingEvenWithDraw": Math.floor(Math.random() * (65 - 30 + 1) + 30),
+    "ThresholdForFoldWithLessThanTrips": Math.floor(Math.random() * (100 - 45 + 1) + 45),
+}
+
+let loosePassivePlayer = {
+    //limp
+    "limpArray": lowOffsuitConnectors.concat(lowMediumPocketPairs, lowSuitedConnectors, lowOffsuitAces, highOffsuitAces, mediumSuitedConnectors,
+        mediumSingleGapSuited, highSingleGapSuited, highKings, suitedAces, suitedKings, suitedQueens, suitedJacks, suitedTens),
+    "callwithJunkPreFlopPercentage":  Math.random() * 0.9,
+    "tooRichForJunkCallPreflopThreshold": Math.floor(Math.random() * (15 - 6 + 1) + 6),
+    "trapPreflopPercentage": Math.random() * 0.5,
+    //raising
+    "raiseFirstInArray": premiumHands.concat(goodPocketPairs, suitedBroadway, offsuitBroadway),
+    "callRaisePreFlopArray": lowOffsuitConnectors.concat(lowMediumPocketPairs, lowSuitedConnectors, lowOffsuitAces, highOffsuitAces, mediumSuitedConnectors,
+        mediumSingleGapSuited, highSingleGapSuited, highKings, suitedAces, suitedKings, suitedQueens, suitedJacks, offsuitBroadway),
+    "reRaisePreflopArray": suitedBroadway.concat(goodPocketPairs),
+    "WontRaisewithReRaiseThreshold": Math.floor(Math.random() * (40 - 15 + 1) + 15),
+    "fourBetPreflopArray": premiumHands,
+    "WontFourBetThreshold": Math.floor(Math.random() * (100 - 50 + 1) + 50),
+    "wontCallRaiseThreshold": Math.floor(Math.random() * (100 - 50 + 1) + 50),
+    //flop
+    "MinRankToContinueOnFlop": Math.floor(Math.random() * (3 - 2 + 1) + 2),
+    "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (45 - 20 + 1) + 20),
+    "chanceOfRaisingWithDraw": Math.random()* 0.1,
+    "chanceofCallingWithDraw": Math.random() * 1.3,
+    "ThresholdForFoldingEvenWithDraw": Math.floor(Math.random() * (200 - 90 + 1) + 90),
+    "ThresholdForFoldWithLessThanTrips": Math.floor(Math.random() * (200 - 90 + 1) + 90),
+}
+
+let potentialPlayerDetailsArrays = [tightAggressivePlayer, looseAggressivePlayer, loosePassivePlayer]
+
+function generatePlayerDetails() {
+    return potentialPlayerDetailsArrays[Math.floor(Math.random() * potentialPlayerDetailsArrays.length)]
+}
+
 
 
 lojackRange = AA.concat(KK, QQ, JJ, TT, _99, _88, _77, _66, _55, 

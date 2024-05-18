@@ -1,6 +1,6 @@
 state = {
     players: [],
-    playerMoney: 1000,
+    playerMoney: 300,
     playerHand: [],
     publicCards: [],
     
@@ -42,6 +42,7 @@ function Player() {
     this.callRaiseWithRFI = Math.random()
   }
   
+  //pick a random player type from the array
   // Create 5 AI players
 function createPlayers() {
     let players = [];
@@ -51,6 +52,7 @@ function createPlayers() {
       possibleNames.splice(nameIndex, 1)
       let player = new Player();
       player.name = randomName
+      player.playerDetails = generatePlayerDetails();
       player.currentSeat = createSeatPositions[i]
       players.push(player);
     }

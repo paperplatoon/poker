@@ -1,6 +1,8 @@
 
 //if big blind reaches player, we auto go to the flop
 //bug when clicking callDiv as small blind -> currentBet is only 2?
+//raise div doesn't work if player is big blind lmfao
+//implement bet slider
 
 //sometimes even tight players limp in late position
 
@@ -13,16 +15,6 @@
 //separate out top pair vs middle pair vs bottom pair for hand ranks
 //give each player an individual willDraw level
 
-
-
-//DONE
-//fixed moving to next hand - changed index on seatPosition
-//fix bet/check/raise/fold divs
-//dealPublicCards now sets currentPlayer to SB, fixes several bugs
-//bug where if betting reaches player and their raise is called, they auto win the pot
-//postFLopAction bug where if it checks to the player, it automatically checks through
-//check if board pairs - if so, opponents don't bet flop
-//bugfixing for hand divs; added state.actionOnPlayer
 
 async function updateState(newStateObj) {
     state = {...newStateObj}
@@ -153,14 +145,11 @@ async function preFlopAction(stateObj) {
     console.log('starting preflop action')
     if (stateObj.actionOnPlayer === false) {
         for (let i=0; i < stateObj.players.length; i++) {
-            //just find the player whose current seat matches state.currentPlayer
             const playerInd = stateObj.players.findIndex(player => player.currentSeat === stateObj.currentPlayer);
             player = stateObj.players[playerInd];
-            //if the current players bet has matched the current bet, then it's time for the flop
-            if (player.currentBet === stateObj.currentBet) {
+            if (player.currentBet === stateObj.currentBet) { //if the current players bet has matched the current bet, then it's time for the flop
                 let playersStillInHand = stateObj.players.filter(player => player.isStillInHand);
-                //if everyone's folded player has won the pot
-                if (playersStillInHand.length === 1) {
+                if (playersStillInHand.length === 1) {  //if everyone's folded, player has won the pot
                     console.log("currentPlayer wins the pot as everyone folds")
                     stateObj = immer.produce(stateObj, (newState) => {
                         newState.players[playerInd].stackSize += newState.currentPot
@@ -168,8 +157,7 @@ async function preFlopAction(stateObj) {
                     })
                     stateObj = await newHand(stateObj)
                     return stateObj
-                //otherwise, it's time to see a flop
-                } else {
+                } else { //otherwise, it's time to see a flop
                     if (player.name === "player" && player.currentSeat === "BB"){
                         console.log("as big blind, player has check option")
                         stateObj = await actionOnPlayer(stateObj, true)
@@ -186,51 +174,84 @@ async function preFlopAction(stateObj) {
                 stateObj = await actionOnPlayer(stateObj, true)
                 return stateObj
             } else {
+                //limp
+    // "limpArray": lowSuitedConnectors.concat(suitedKings, suitedQueens, highOffsuitAces, highKings, lowSuitedConnectors, highSingleGapSuited, mediumSingleGapSuited),
+    // "callwithJunkPreFlopPercentage":  Math.random() * 0.1,
+    // "tooRichForJunkCallPreflopThreshold": Math.floor(Math.random() * (9 - 3 + 1) + 3),
+    // "trapPreflopPercentage": Math.random() * 0.3,
+    // //raising
+    // "raiseFirstInArray": premiumHands.concat(goodPocketPairs, suitedBroadway, suitedAces, offsuitBroadway, mediumSuitedConnectors, lowMediumPocketPairs),
+    // "callRaisePreFlopArray": mediumSuitedConnectors.concat(lowMediumPocketPairs, suitedKings, offsuitBroadway, suitedAces),
+    // "reRaisePreflopArray": goodPocketPairs.concat(suitedBroadway, premiumHands),
+    // "WontRaisewithReRaiseThreshold": Math.floor(Math.random() * (60 - 30 + 1) + 30),
+    // "fourBetPreflopArray": premiumHands,
+    // "WontFourBetThreshold": Math.floor(Math.random() * (175 - 75 + 1) + 75),
+    // "wontCallRaiseThreshold": Math.floor(Math.random() * (50 - 30 + 1) + 30),
+    // //flop
+    // "RankcontinueOnFlopWithArray": [],
+    // "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (20 - 5 + 1) + 5),
+    // "chanceOfRaisingWithDraw": Math.random() * 0.3,
+    // "chanceofCallingWithDraw": Math.random() * 0.75,
+    // "ThresholdForFoldingEvenWithDraw": Math.floor(Math.random() * (65 - 30 + 1) + 30),
+    // "ThresholdForFoldWithLessThanTrips": Math.floor(Math.random() * (100 - 45 + 1) + 45),
                 //if no raise yet
-                const callThreshold = player.callwithJunkPreFlopPercentage
+                const callThreshold = player.playerDetails['callwithJunkPreFlopPercentage']
                 const callValue = Math.random()
                 //console.log(player.name + " has a call value of " + callValue.toFixed(2) + " and a threshold of " + callThreshold.toFixed(2))
                 const willCall = callValue < player.callwithJunkPreFlopPercentage
                 let moneyIn = stateObj.currentBet
                 if (stateObj.currentBet === 3) {
                     //####FIX - SHOULD INSTEAD CONSTRUCT EACH PLAYER TO HAVE A FOURBET AND RFI RANGE 
-                    if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
-                       stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
-                        console.log(player.name + " raises to " + moneyIn*4)
-                    } else if (isHandInRange(player.currentHand, looseSmallBlindRaiseRange)) {
+                    if (isHandInRange(player.currentHand, player.playerDetails['raiseFirstInArray'])) {
+                        if (callValue < player.playerDetails['trapPreflopPercentage']) {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                        } else {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
+                        }
+                    } else if (isHandInRange(player.currentHand, player.playerDetails['limpArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
-                        console.log(player.name + " calls " + moneyIn + " loosely")
                     } else {
                         if (willCall) {
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
-                            console.log(player.name + " calls " + moneyIn + " as a bluff")
                         } else {
-                            //add fold function
                             stateObj = await playerFolds(stateObj, playerInd)
                         }
                     }
-                } else if (stateObj.currentBet < 25) {
-                    if (isHandInRange(player.currentHand, premiumHands)) {
-                        console.log(player.name + " raises with a 4bet hand to " + moneyIn*3)
-                        stateObj = await putInBet(stateObj, playerInd, moneyIn*3)
-                    } else if (isHandInRange(player.currentHand, raiseFirstIn[player.currentSeat])) {
+                } else if (stateObj.currentBet < player.playerDetails['WontRaisewithReRaiseThreshold']) {
+                    if (isHandInRange(player.currentHand, player.playerDetails['reRaisePreflopArray'])) {
+                        if (callValue < player.playerDetails['trapPreflopPercentage']) {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                        } else {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
+                        }
+                    } else if (isHandInRange(player.currentHand, player.playerDetails['callRaisePreFlopArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
-                        console.log(player.name + " calls " + moneyIn + " loosely")
                     } else if ((callValue*2 < callThreshold)) {
-                        stateObj = await putInBet(stateObj, playerInd, moneyIn)
-                        console.log(player.name + " calls " + moneyIn + " as a bluff")
+                        if (moneyIn < player.playerDetails['wontCallRaiseThreshold']) {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                        } else {
+                            stateObj = await playerFolds(stateObj, playerInd)
+                        }
                     } else {
                         stateObj = await playerFolds(stateObj, playerInd)
                     }
-                } else {
-                    if (isHandInRange(player.currentHand, premiumHands)) {
-                        console.log(player.name + " raises to " + moneyIn*3)
-                        stateObj = await putInBet(stateObj, playerInd, moneyIn*3)
-                    } else if ((isHandInRange(player.currentHand, raiseFirstIn["Dealer"]))) {
+                } else if (stateObj.currentBet < player.playerDetails['WontFourBetThreshold']) {
+                    if (isHandInRange(player.currentHand, player.playerDetails['fourBetPreflopArray'])) {
+                        if (callValue < player.playerDetails['trapPreflopPercentage']) {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                        } else {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
+                        }
+                    } else if (isHandInRange(player.currentHand, player.playerDetails['reRaisePreflopArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
-                        console.log(player.name + " calls " + moneyIn + " loosely")
-                    } else {
+                    }else {
                         stateObj = await playerFolds(stateObj, playerInd)
+                    }
+                } else {
+                    if (isHandInRange(player.currentHand, player.playerDetails['fourBetPreflopArray'])) {
+                            stateObj = await putInBet(stateObj, playerInd, moneyIn)
+                    } else {
+                            stateObj = await playerFolds(stateObj, playerInd)
                     }
                 }
             }
