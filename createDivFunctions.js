@@ -3,6 +3,17 @@ function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) 
     playerDiv.style.top = positionTop;
     playerDiv.style.left = positionLeft;
 
+    if (player.currentSuspicion > 0) {
+        let suspicionDiv = document.createElement("Div");
+        suspicionDiv.classList.add("player-suspicion");
+        let barHeight = 15*(player.currentSuspicion/player.maxSuspicion)
+        let barText = "width:" + barHeight + "vw"
+        suspicionDiv.setAttribute("style", barText);
+        suspicionDiv.textContent = Math.floor(player.currentSuspicion/player.maxSuspicion * 100) + "%"
+        playerDiv.append(suspicionDiv);
+    }
+    
+
     const playerTopRowDiv = createDiv('playerTopRowDiv')
     const playerNameDiv = createDiv('playerNameDiv', player.name)
     const playerSeatDiv = createDiv('playerSeatDiv', player.currentSeat)
@@ -64,11 +75,21 @@ function createDiv(classListName, textString=false) {
     return tempDiv
 }
 
-function createPokerTableDiv() {
+function createPokerTableDiv(stateObj) {
     // Create table div
     const tableDiv = document.createElement('div');
     tableDiv.id = 'tableDiv';
     document.body.appendChild(tableDiv);
+
+    let suspicionDiv = document.createElement("Div");
+    suspicionDiv.classList.add("table-suspicion");
+    let barHeight = 60*(stateObj.groupSuspicion/stateObj.maxGroupSuspicion)
+    let barText = "width:" + barHeight + "vw"
+    suspicionDiv.setAttribute("style", barText);
+    if (stateObj.groupSuspicion > 0) {
+        suspicionDiv.textContent = Math.floor(stateObj.groupSuspicion/stateObj.maxGroupSuspicion * 100) + "%"
+    }
+    tableDiv.append(suspicionDiv);
 
     // Create player divs and card divs
     const positions = [

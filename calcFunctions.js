@@ -198,6 +198,7 @@ function isADraw(hand) {
     // Check for 4 to a straight
     let hasStraight = false;
     for (let i = 0; i <= 1; i++) {
+        //BROKEN - needs to get ranks first, and account for K, Q, J etc with array
         if (hand[i + 1] - hand[i] === 1 && hand[i + 2] - hand[i + 1] === 1 && hand[i + 3] - hand[i + 2] === 1) {
             hasStraight = true;
             break;
@@ -208,9 +209,11 @@ function isADraw(hand) {
     let suits = hand.map(card => card[1]);
     let suitCounts = {};
     suits.forEach(suit => {
+        //BROKEN???
         suitCounts[suit] = suitCounts[suit] ? suitCounts[suit] + 1 : 1;
     });
-    let hasFlush = Object.values(suitCounts).some(count => count >= 4);
+    console.log("suitcounts for hand " + hand + " is " + suitCounts)
+    let hasFlush = Object.values(suitCounts).some(count => count === 4);
 
     return hasStraight || hasFlush;
 }
@@ -376,6 +379,7 @@ async function actionOnPlayer(stateObj, changeStatus) {
 async function playerFolds(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, async (newState) => {
         newState.players[playerIndex].isStillInHand = false
+        newState.players[playerIndex].currentSuspicion = 0
         console.log(newState.players[playerIndex].name + " folds") 
     })
     await updateState(stateObj)
@@ -425,4 +429,17 @@ async function givePotToPlayer(stateObj, playerIndex) {
     pause(1000)
     await updateState(stateObj)
     return stateObj;
+}
+
+async function checkForDeath(stateObj) {
+    if (stateObj.groupSuspicion >= stateObj.maxGroupSuspicion) {
+        alert("The group as a whole became too suspicious! You lost. Click OK to try again");
+        window.location.reload();
+    }
+    stateObj.players.forEach(player => {
+        if (player.currentSuspicion >= player.maxSuspicion) {
+            alert(player.name + " became too suspicious! You lost. Click OK to try again");
+            window.location.reload();
+        }
+    })
 }

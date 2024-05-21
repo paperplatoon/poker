@@ -68,7 +68,7 @@ let tightAggressivePlayer = {
     "WontFourBetThreshold": Math.floor(Math.random() * (175 - 75 + 1) + 75),
     "wontCallRaiseThreshold": Math.floor(Math.random() * (50 - 30 + 1) + 30),
     //flop
-    "RankcontinueOnFlopWithArray": Math.floor(Math.random() * (3 - 2 + 1) + 2),
+    "MinRankToContinueOnFlop": Math.floor(Math.random() * (3 - 2 + 1) + 2),
     "trapFlopPercentage": Math.random() * 0.5,
     "tooRichForJunkCallFlopThreshold": Math.floor(Math.random() * (20 - 5 + 1) + 5),
     "BluffFlopPercentage": Math.random() * 0.6,

@@ -39,6 +39,26 @@
     justify-content: space-evenly;
 }
 
+.player-suspicion {
+    position: absolute;
+    top: -4vh;
+    left: -1px;
+    height: 2.5vh;
+    color: black;
+    background-color: rgba(231, 122, 255, 0.903);
+    border: 1px dashed black;
+}
+
+.table-suspicion {
+    height: 60vw;
+    background-color: rgba(94, 0, 128, 0.546);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+}
 
 .fold {
     opacity: 0.5;

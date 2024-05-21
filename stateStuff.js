@@ -3,6 +3,8 @@ state = {
     playerMoney: 300,
     playerHand: [],
     publicCards: [],
+    groupSuspicion: 0,
+    maxGroupSuspicion: 10, 
     
     currentBet: 0,
     currentPot: 0,
@@ -32,6 +34,8 @@ function Player() {
     this.leftCardDealt = false;
     this.rightCardDealt = false;
     this.currentSeat = false;
+    this.currentSuspicion = 0;
+    this.maxSuspicion = 10;
     this.stackSize = 1000; // Arbitrary starting amount
     this.isStillInHand = true;
     this.currentBet = 0;
