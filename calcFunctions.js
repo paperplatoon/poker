@@ -388,6 +388,13 @@ async function playerFolds(stateObj, playerIndex) {
 //need to 
 async function determineHandWinner(stateObj) {
     let playersStillInHand = stateObj.players.filter(player => player.isStillInHand);
+    stateObj = immer.produce(stateObj, (newState) => {
+        for (let i =0; i < playersStillInHand.length; i++) {
+            const index = stateObj.players.findIndex(loopPlayer => loopPlayer.name === playersStillInHand[i].name)
+            newState.players[index].leftCardVisible = true;
+            newState.players[index].rightCardVisible = true;
+        }
+    })
     while (playersStillInHand.length > 1) {
         const player1Hand = playersStillInHand[0].currentHand.concat(stateObj.publicCards)
         const player2Hand = playersStillInHand[1].currentHand.concat(stateObj.publicCards)
@@ -414,8 +421,10 @@ async function determineHandWinner(stateObj) {
         newState.players[winnerIndex].stackSize += newState.currentPot
         console.log (newState.players[winnerIndex].name + " wins " + newState.currentPot + " with " + winnerStats[0] )
         newState.currentPot = 0;
+        newState.currentPlayer = stateObj.players[winnerIndex].currentSeat
     })
     await updateState(stateObj)
+    await pause(6000)
     return stateObj
 }
 
@@ -442,4 +451,11 @@ async function checkForDeath(stateObj) {
             window.location.reload();
         }
     })
+}
+
+async function changeCurrentScreen(stateObj, screenString) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.currentScreen = screenString
+    })
+    await updateState(stateObj)
 }

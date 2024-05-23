@@ -54,6 +54,16 @@ function createPlayerCardsDiv(player, cardFunctionString) {
                     await makeCardVisible(state, player, 1);
                 };
             }
+        } else if (cardFunctionString === "chooseToSwap") {
+            if (j===0) {
+                cardDiv.onclick = async function() {
+                    await swapHandWithDeck(state, player, 0);
+                };
+            } else {
+                cardDiv.onclick = async function() {
+                    await swapHandWithDeck(state, player, 1);
+                };
+            }
         }
         //if cards are visible, show their value; if not, add the invisible class
         if ( (j===0 && player.leftCardVisible) ||  (j===1 && player.rightCardVisible) ) {
@@ -140,16 +150,12 @@ function createPotDiv(stateObj) {
     const potDiv = document.createElement('div');
     potDiv.classList.add('playerNameDiv');
     potDiv.textContent = "Pot: " + stateObj.currentPot;
-    potDiv.style.top = "70%";
-    potDiv.style.left = "70%";
 
     return potDiv
 }
 function createPublicCardsDiv(stateObj) {
     const publicCardsDiv = document.createElement('div');
     publicCardsDiv.classList.add('public-cards-div');
-    publicCardsDiv.style.top = "50%"
-    publicCardsDiv.style.left = "50%"
     for (let i=-0; i < stateObj.publicCards.length; i++) {
         const cardDiv = document.createElement('div');
         cardDiv.classList.add('cardDiv');
@@ -161,19 +167,15 @@ function createPublicCardsDiv(stateObj) {
 
 function createBettingDiv(buttonString) {
     const bettingDiv = document.createElement('div');
-    bettingDiv.classList.add('action-div');
+    bettingDiv.classList.add('action-div', 'centered')
     bettingDiv.textContent = buttonString
-    bettingDiv.style.top = '10%';
-    bettingDiv.style.left = '70%';
     return bettingDiv
 }
 
 function createRaiseDiv(stateObj) {
     let RaiseDiv = document.createElement('div');
-    RaiseDiv.classList.add('action-div');
+    RaiseDiv.classList.add('action-div', 'centered')
     RaiseDiv.textContent = "Raise"
-    RaiseDiv.style.top = '10%';
-    RaiseDiv.style.left = '70%';
     RaiseDiv.onclick = async function() {
         stateObj = {...state}
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
@@ -193,12 +195,9 @@ function createRaiseDiv(stateObj) {
 
 function createFoldDiv(stateObj) {
     let foldDiv = document.createElement('div');
-    foldDiv.classList.add('action-div');
+    foldDiv.classList.add('action-div', 'centered')
     foldDiv.textContent = "Fold"
-    foldDiv.style.top = '10%';
-    foldDiv.style.left = '70%';
     foldDiv.onclick = async function() {
-        console.log('clicked fold div')
         stateObj = await actionOnPlayer(stateObj, false)
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
         stateObj = await playerFolds(stateObj, playerIndex)
@@ -207,12 +206,30 @@ function createFoldDiv(stateObj) {
     return foldDiv
 }
 
+function createSeeCardDiv(stateObj) {
+    let seeCardDiv = document.createElement('div');
+    seeCardDiv.classList.add('spell-div', 'centered');
+    seeCardDiv.textContent = "See Hole Card - [6/3]"
+    seeCardDiv.onclick = async function() {
+        await changeCurrentScreen(stateObj, "chooseVisibleCard")
+    }
+    return seeCardDiv
+}
+
+function createSwapCardDiv(stateObj) {
+    let seeCardDiv = document.createElement('div');
+    seeCardDiv.classList.add('spell-div', 'centered');
+    seeCardDiv.textContent = "Swap Hole Card - [2/2]"
+    seeCardDiv.onclick = async function() {
+        await changeCurrentScreen(stateObj, "chooseToSwap")
+    }
+    return seeCardDiv
+}
+
 function createCallDiv(stateObj) {
     const callDiv = document.createElement('div');
-    callDiv.classList.add('action-div');
+    callDiv.classList.add('action-div', 'centered');
     callDiv.textContent = "Call"
-    callDiv.style.top = '10%';
-    callDiv.style.left = '70%';
     callDiv.onclick = async function() {
         stateObj = {...state}
         console.log('clicked call div')
@@ -235,10 +252,8 @@ function createCallDiv(stateObj) {
 
 function createBetDiv(stateObj) {
     const betDiv = document.createElement('div');
-        betDiv.classList.add('action-div');
+        betDiv.classList.add('action-div', 'centered')
         betDiv.textContent = "Bet"
-        betDiv.style.top = '10%';
-        betDiv.style.left = '70%';
         betDiv.onclick = async function() {
             stateObj = {...state}
             console.log('clicked bet div')
@@ -254,10 +269,8 @@ function createBetDiv(stateObj) {
 
 function createCheckDiv(stateObj) {
     const checkDiv = document.createElement('div');
-    checkDiv.classList.add('action-div');
+    checkDiv.classList.add('action-div', 'centered')
     checkDiv.textContent = "Check"
-    checkDiv.style.top = '10%';
-    checkDiv.style.left = '70%';
     checkDiv.onclick = async function() {
         stateObj = {...state}
         console.log('clicked check div')

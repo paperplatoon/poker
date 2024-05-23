@@ -7,9 +7,6 @@
 //give each player an individual willDraw level
 //isHandDraw doesn't seem to be working, at least for flush draws....
 
-//add suspicion level to the state; checkForDeath to see if the player loses
-//add a visual indicator for suspicion level
-
 
 
 
@@ -22,11 +19,7 @@ async function updateState(newStateObj) {
 }
 
 async function renderScreen(stateObj) {
-    if (stateObj.currentScreen === "chooseVisibleCard") {
-        await chooseHoleCardToBeVisiblePokerTable(stateObj)
-    } else if (stateObj.currentScreen === "renderTable") {
-        createPokerTable(stateObj)
-    }
+    await renderPokerTable(stateObj)
 }
 
 async function startGame() {
@@ -178,6 +171,7 @@ async function preFlopAction(stateObj) {
                     if (player.name === "player" && player.currentSeat === "BB"){
                         console.log("as big blind, player has check option")
                         stateObj = await actionOnPlayer(stateObj, true)
+                        return stateObj
                     } else {
                         console.log("preflop action closed - time to see a flop")
                         stateObj = await dealPublicCards(stateObj, 3)
@@ -447,31 +441,51 @@ async function postFlopAction(stateObj) {
     
 
 async function makeCardVisible(stateObj, player, cardNum) {
-    console.log("trggering makeCardvisible for player " + player.name)
     const currentPlayerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === player.name)
     const playerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === "player")
     stateObj = immer.produce(stateObj, (newState) => {
+        let modifier = (player.isStillInHand) ? 2 : 1
         if (cardNum === 0) {
             newState.players[currentPlayerIndex].leftCardVisible = true
-            newState.players[currentPlayerIndex].currentSuspicion += 6
-            newState.players[playerIndex].currentSuspicion += 3
+            newState.players[currentPlayerIndex].currentSuspicion += 3 * modifier
+            newState.players[playerIndex].currentSuspicion += 1 * modifier
         } else {
             newState.players[currentPlayerIndex].rightCardVisible = true
-            newState.players[currentPlayerIndex].currentSuspicion += 6
-            newState.players[playerIndex].currentSuspicion += 3
+            newState.players[currentPlayerIndex].currentSuspicion += 3 * modifier
+            newState.players[playerIndex].currentSuspicion += 1 * modifier
         }
     })
     stateObj = await updateState(stateObj)
     return stateObj
 }
 
+async function swapHandWithDeck(stateObj, player, cardNum) {
+    const currentPlayerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === player.name)
+    const playerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === "player")
 
-async function chooseHoleCardToBeVisiblePokerTable(stateObj) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        randomCardIndex = Math.floor(Math.random() * stateObj.currentDeck.length)
+        let modifier = (player.isStillInHand) ? 2 : 1
+        let playerCardToSwap = player.currentHand[cardNum]
+        newState.players[currentPlayerIndex].currentHand[cardNum] = newState.currentDeck[randomCardIndex]
+        newState.currentDeck[randomCardIndex] = playerCardToSwap
+        newState.players[currentPlayerIndex].currentSuspicion += 1 * modifier
+        newState.players[playerIndex].currentSuspicion += 1 * modifier
+    })
+    stateObj = await updateState(stateObj)
+    return stateObj
+}
+
+
+async function renderPokerTable(stateObj) {
     document.body.innerHTML = ''
-    // Create table div
+    screenDiv = createDiv("screen-div")
+    screenDiv.classList.add("centered")
+
     const tableDiv = document.createElement('div');
     tableDiv.id = 'tableDiv';
-    document.body.appendChild(tableDiv);
+    
+
 
     // Create player divs and card divs
     const positions = [
@@ -484,7 +498,12 @@ async function chooseHoleCardToBeVisiblePokerTable(stateObj) {
     ];
 
     for (let i = 0; i < 6; i++) {
-        let playerDiv = createPlayerDiv(state.players[i], positions[i].top, positions[i].left, "chooseToTurnVisible")
+        if (stateObj.currentScreen === "chooseVisibleCard") {
+            playerDiv = createPlayerDiv(state.players[i], positions[i].top, positions[i].left, "chooseToTurnVisible")
+        } else if (stateObj.currentScreen === "chooseToSwap") {
+            playerDiv = createPlayerDiv(state.players[i], positions[i].top, positions[i].left, "chooseToSwap")
+        }
+        
         tableDiv.appendChild(playerDiv);
     }
 
@@ -495,16 +514,30 @@ async function chooseHoleCardToBeVisiblePokerTable(stateObj) {
     const betDiv = createBetDiv(stateObj)
     let RaiseDiv = createRaiseDiv(stateObj)
     const checkDiv = createCheckDiv(stateObj)
+
     
+    const playerActionsDiv = createDiv('player-actions-div')    
     const playerIndex = stateObj.players.findIndex(player => player.name === "player") 
-    if (stateObj.currentBet === 0) {
-        document.body.append(checkDiv, betDiv)
+    if (stateObj.currentBet === 0 && stateObj.publicCards.length > 0) {
+        playerActionsDiv.append(checkDiv, betDiv)
     } else if (stateObj.players[playerIndex] == "BB" && stateObj.currentBet === 3) {
-        document.body.append(checkDiv, RaiseDiv)
+        playerActionsDiv.append(checkDiv, RaiseDiv)
     } else {
-        document.body.append(foldDiv, callDiv, RaiseDiv)
+        playerActionsDiv.append(foldDiv, callDiv, RaiseDiv)
     }
+
+    const playerSpellsDiv = createDiv('player-spells-div')
+    const seeCardDiv = createSeeCardDiv(stateObj)
+    const swapCardDiv = createSwapCardDiv(stateObj)
+    playerSpellsDiv.append(seeCardDiv, swapCardDiv)
+
+    const topDiv = createDiv("top-screenhalf-div")
+    topDiv.append(playerActionsDiv, playerSpellsDiv)
+
     tableDiv.append(publicCardsDiv, potDiv)
+
+    screenDiv.append(topDiv, tableDiv)
+    document.body.append(screenDiv)
 }
 
 async function resetHand(stateObj) {

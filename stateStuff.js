@@ -13,7 +13,8 @@ state = {
     actionOnPlayer: false,
 
     currentDeck: [],
-    currentScreen: "chooseVisibleCard",
+    //currentScreen: "chooseVisibleCard",
+    currentScreen: "chooseToSwap",
 
 }
 
