@@ -21,7 +21,7 @@ function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) 
 
     const playerBottomRowDiv = createDiv('playerTopRowDiv')
     const playerStackDiv = createDiv('playerNameDiv', player.stackSize)
-    const playerBetDiv =  (player.hasChecked) ? createDiv('playerNameDiv', "Check") : createDiv('playerNameDiv', player.currentBet)
+    const playerBetDiv =  player.currentBet
     
     playerBottomRowDiv.append(playerStackDiv, playerBetDiv)
 
@@ -64,6 +64,16 @@ function createPlayerCardsDiv(player, cardFunctionString) {
                     await swapHandWithDeck(state, player, 1);
                 };
             }
+        } else if (cardFunctionString === "swapPlayerNPC") {
+            if (j===0) {
+                cardDiv.onclick = async function() {
+                    await swapWithPlayerLowestCard(state, player, 0);
+                };
+            } else {
+                cardDiv.onclick = async function() {
+                    await swapWithPlayerLowestCard(state, player, 1);
+                };
+            }
         }
         //if cards are visible, show their value; if not, add the invisible class
         if ( (j===0 && player.leftCardVisible) ||  (j===1 && player.rightCardVisible) ) {
@@ -71,6 +81,9 @@ function createPlayerCardsDiv(player, cardFunctionString) {
         } else {
             cardDiv.classList.add("not-visible") 
         }      
+        if (player.currentHand.length > 1) {
+            cardDiv.classList.add(player.currentHand[j][1])
+        }
         playerCardsDiv.appendChild(cardDiv);
     }
     return playerCardsDiv
@@ -149,8 +162,8 @@ function createPokerTableDiv(stateObj) {
 function createPotDiv(stateObj) {
     const potDiv = document.createElement('div');
     potDiv.classList.add('playerNameDiv');
+    potDiv.classList.add('pot-div');
     potDiv.textContent = "Pot: " + stateObj.currentPot;
-
     return potDiv
 }
 function createPublicCardsDiv(stateObj) {
@@ -159,6 +172,7 @@ function createPublicCardsDiv(stateObj) {
     for (let i=-0; i < stateObj.publicCards.length; i++) {
         const cardDiv = document.createElement('div');
         cardDiv.classList.add('cardDiv');
+        cardDiv.classList.add(stateObj.publicCards[i][1])
         cardDiv.textContent = stateObj.publicCards[i]
         publicCardsDiv.append(cardDiv)
     }
@@ -179,8 +193,7 @@ function createRaiseDiv(stateObj) {
     RaiseDiv.onclick = async function() {
         stateObj = {...state}
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-        const moneyIn = (stateObj.currentBet - stateObj.players[playerIndex].currentBet) * 3
-        stateObj = await putInBet(stateObj, playerIndex, moneyIn)
+        stateObj = await putInBet(stateObj, playerIndex, stateObj.currentBet)
         console.log('player raised to ' + state.currentBet)
         stateObj = await nextPlayer(stateObj)
         stateObj = await actionOnPlayer(stateObj, false)
@@ -209,7 +222,7 @@ function createFoldDiv(stateObj) {
 function createSeeCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "See Hole Card - [6/3]"
+    seeCardDiv.textContent = "See Hole Card - [4/2]"
     seeCardDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "chooseVisibleCard")
     }
@@ -219,9 +232,19 @@ function createSeeCardDiv(stateObj) {
 function createSwapCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "Swap Hole Card - [2/2]"
+    seeCardDiv.textContent = "Swap Hole Card - [6/4]"
     seeCardDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "chooseToSwap")
+    }
+    return seeCardDiv
+}
+
+function createSwapPlayerCardDiv(stateObj) {
+    let seeCardDiv = document.createElement('div');
+    seeCardDiv.classList.add('spell-div', 'centered');
+    seeCardDiv.textContent = "Swap With Your Lowest Card - 6/4"
+    seeCardDiv.onclick = async function() {
+        await changeCurrentScreen(stateObj, "swapPlayerNPC")
     }
     return seeCardDiv
 }

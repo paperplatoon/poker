@@ -10,12 +10,13 @@ state = {
     currentPot: 0,
     currentDealer: 5,
     currentPlayer: "SB",
+    lastBettor: "BB",
     actionOnPlayer: false,
+    gameStarted: false,
 
     currentDeck: [],
-    //currentScreen: "chooseVisibleCard",
-    currentScreen: "chooseToSwap",
-
+    currentScreen: "chooseVisibleCard",
+    
 }
 
 const possibleNames = ["Alex", "Casey", "Charlie", "Dakota", "Emerson", "Finn", "Harper", "Jamie", "Jordan", "Kai", "Morgan", "Parker", "Quinn", "Reese", "Riley", "River", "Rowan", "Skyler", "Taylor"];
@@ -37,7 +38,7 @@ function Player() {
     this.currentSeat = false;
     this.currentSuspicion = 0;
     this.maxSuspicion = 10;
-    this.stackSize = 1000; // Arbitrary starting amount
+    this.stackSize = 400; // Arbitrary starting amount
     this.isStillInHand = true;
     this.currentBet = 0;
     this.hasChecked = false;
