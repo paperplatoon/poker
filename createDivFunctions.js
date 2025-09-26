@@ -3,16 +3,22 @@ function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) 
     playerDiv.style.top = positionTop;
     playerDiv.style.left = positionLeft;
 
-    if (player.currentSuspicion > 0) {
-        let suspicionDiv = document.createElement("Div");
-        suspicionDiv.classList.add("player-suspicion");
-        let barHeight = 15*(player.currentSuspicion/player.maxSuspicion)
-        let barText = "width:" + barHeight + "vw"
-        suspicionDiv.setAttribute("style", barText);
-        suspicionDiv.textContent = Math.floor(player.currentSuspicion/player.maxSuspicion * 100) + "%"
-        playerDiv.append(suspicionDiv);
+    if (player.name === "player") {
+        const suspicionContainer = document.createElement("div");
+        suspicionContainer.classList.add("player-suspicion");
+
+        const fillDiv = document.createElement("div");
+        fillDiv.classList.add("player-suspicion-fill");
+        const percentage = player.maxSuspicion === 0 ? 0 : Math.min(100, Math.round((player.currentSuspicion / player.maxSuspicion) * 100));
+        fillDiv.style.width = percentage + "%";
+
+        const labelSpan = document.createElement("span");
+        labelSpan.classList.add("player-suspicion-label");
+        labelSpan.textContent = `Suspicion ${player.currentSuspicion}/${player.maxSuspicion}`;
+
+        suspicionContainer.append(fillDiv, labelSpan);
+        playerDiv.append(suspicionContainer);
     }
-    
 
     const playerTopRowDiv = createDiv('playerTopRowDiv')
     const playerNameDiv = createDiv('playerNameDiv', player.name)
@@ -45,6 +51,7 @@ function createPlayerCardsDiv(player, cardFunctionString) {
         const cardDiv = createDiv('cardDiv');
         //if you're in the 'Choose a card to turn visible' state
         if (cardFunctionString=="chooseToTurnVisible") {
+            cardDiv.classList.add('card-clickable');
             if (j===0) {
                 cardDiv.onclick = async function() {
                     await makeCardVisible(state, player, 0);
@@ -55,6 +62,7 @@ function createPlayerCardsDiv(player, cardFunctionString) {
                 };
             }
         } else if (cardFunctionString === "chooseToSwap") {
+            cardDiv.classList.add('card-clickable');
             if (j===0) {
                 cardDiv.onclick = async function() {
                     await swapHandWithDeck(state, player, 0);
@@ -65,6 +73,7 @@ function createPlayerCardsDiv(player, cardFunctionString) {
                 };
             }
         } else if (cardFunctionString === "swapPlayerNPC") {
+            cardDiv.classList.add('card-clickable');
             if (j===0) {
                 cardDiv.onclick = async function() {
                     await swapWithPlayerLowestCard(state, player, 0);
@@ -103,16 +112,6 @@ function createPokerTableDiv(stateObj) {
     const tableDiv = document.createElement('div');
     tableDiv.id = 'tableDiv';
     document.body.appendChild(tableDiv);
-
-    let suspicionDiv = document.createElement("Div");
-    suspicionDiv.classList.add("table-suspicion");
-    let barHeight = 60*(stateObj.groupSuspicion/stateObj.maxGroupSuspicion)
-    let barText = "width:" + barHeight + "vw"
-    suspicionDiv.setAttribute("style", barText);
-    if (stateObj.groupSuspicion > 0) {
-        suspicionDiv.textContent = Math.floor(stateObj.groupSuspicion/stateObj.maxGroupSuspicion * 100) + "%"
-    }
-    tableDiv.append(suspicionDiv);
 
     // Create player divs and card divs
     const positions = [
@@ -193,8 +192,11 @@ function createRaiseDiv(stateObj) {
     RaiseDiv.onclick = async function() {
         stateObj = {...state}
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-        stateObj = await putInBet(stateObj, playerIndex, stateObj.currentBet)
-        console.log('player raised to ' + state.currentBet)
+        const currentBet = stateObj.currentBet;
+        const targetBet = currentBet === 0 ? 3 : Math.max(currentBet * 3, currentBet + 3);
+        const roundedTarget = Math.ceil(targetBet);
+        stateObj = await putInBet(stateObj, playerIndex, roundedTarget)
+        console.log('player raised to ' + roundedTarget)
         stateObj = await nextPlayer(stateObj)
         stateObj = await actionOnPlayer(stateObj, false)
         if (stateObj.publicCards.length === 0) {
@@ -222,7 +224,10 @@ function createFoldDiv(stateObj) {
 function createSeeCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "See Hole Card - [5/2]"
+    seeCardDiv.textContent = "See Hole Card [+3]"
+    if (stateObj.currentScreen === "chooseVisibleCard") {
+        seeCardDiv.classList.add('spell-selected');
+    }
     seeCardDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "chooseVisibleCard")
     }
@@ -232,7 +237,10 @@ function createSeeCardDiv(stateObj) {
 function createSwapCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "Swap Hole Card - [4/2]"
+    seeCardDiv.textContent = "Swap Hole Card [+4]"
+    if (stateObj.currentScreen === "chooseToSwap") {
+        seeCardDiv.classList.add('spell-selected');
+    }
     seeCardDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "chooseToSwap")
     }
@@ -242,7 +250,10 @@ function createSwapCardDiv(stateObj) {
 function createSwapPlayerCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "Swap With Your Lowest Card - 6/4"
+    seeCardDiv.textContent = "Swap With Your Lowest Card [+5]"
+    if (stateObj.currentScreen === "swapPlayerNPC") {
+        seeCardDiv.classList.add('spell-selected');
+    }
     seeCardDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "swapPlayerNPC")
     }

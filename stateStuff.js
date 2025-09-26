@@ -3,8 +3,7 @@ state = {
     playerMoney: 300,
     playerHand: [],
     publicCards: [],
-    groupSuspicion: 0,
-    maxGroupSuspicion: 10, 
+
     
     currentBet: 0,
     currentPot: 0,
@@ -70,7 +69,6 @@ function createPlayers() {
     players.push(playerCharacter);
     return players
   }
-
 
   state.players = createPlayers()
   

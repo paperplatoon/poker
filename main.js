@@ -70,28 +70,15 @@ async function dealPublicCards(stateObj, numberCards) {
 
     stateObj = immer.produce(stateObj, (newState) => {
         newState.currentBet = 0;
-        if (newState.groupSuspicion > 2) {
-            newState.groupSuspicion -= 2
-        } else {
-            newState.groupSuspicion = 0
-        }
-        
+        const playerIndex = newState.players.findIndex(loopPlayer => loopPlayer.name === "player");
         newState.players.forEach(player => {
-            player.currentBet = 0
+            player.currentBet = 0;
             player.hasChecked = false;
-            if (player.currentSuspicion > 1) {
-                player.currentSuspicion -= 2
-            } else {
-                player.currentSuspicion = 0
-            }
-            if (player.name === "player") {
-                if (player.currentSuspicion > 1) {
-                    player.currentSuspicion -= 3
-                } else {
-                    player.currentSuspicion = 0
-                }
-            }
-        })
+        });
+        if (playerIndex !== -1) {
+            const player = newState.players[playerIndex];
+            player.currentSuspicion = Math.max(0, player.currentSuspicion - 3);
+        }
     })
     
     for (let i=0; i < numberCards; i++) {
@@ -437,17 +424,19 @@ async function postFlopAction(stateObj) {
 async function makeCardVisible(stateObj, player, cardNum) {
     const currentPlayerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === player.name)
     const playerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === "player")
+    if (currentPlayerIndex === -1 || playerIndex === -1) {
+        return stateObj;
+    }
     if (player.name !== "player") {
         stateObj = immer.produce(stateObj, (newState) => {
-            let modifier = (player.isStillInHand) ? 2 : 1
             if (cardNum === 0) {
                 newState.players[currentPlayerIndex].leftCardVisible = true
-                newState.players[currentPlayerIndex].currentSuspicion += Math.floor(2.5 * modifier)
-                newState.players[playerIndex].currentSuspicion += 1 * modifier
             } else {
                 newState.players[currentPlayerIndex].rightCardVisible = true
-                newState.players[currentPlayerIndex].currentSuspicion += Math.floor(2.5 * modifier)
-                newState.players[playerIndex].currentSuspicion += 1 * modifier 
+            }
+            if (playerIndex !== -1) {
+                const humanPlayer = newState.players[playerIndex];
+                humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + 3);
             }
         })
     }
@@ -460,14 +449,19 @@ async function swapHandWithDeck(stateObj, player, cardNum) {
     const currentPlayerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === player.name)
     const playerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === "player")
 
+    if (currentPlayerIndex === -1 || playerIndex === -1) {
+        return stateObj;
+    }
+
     stateObj = immer.produce(stateObj, (newState) => {
-        randomCardIndex = Math.floor(Math.random() * stateObj.currentDeck.length)
-        let modifier = (player.isStillInHand || player.name === "player") ? 2 : 1
-        let playerCardToSwap = player.currentHand[cardNum]
+        const randomCardIndex = Math.floor(Math.random() * newState.currentDeck.length)
+        const playerCardToSwap = newState.players[currentPlayerIndex].currentHand[cardNum]
         newState.players[currentPlayerIndex].currentHand[cardNum] = newState.currentDeck[randomCardIndex]
         newState.currentDeck[randomCardIndex] = playerCardToSwap
-        newState.players[currentPlayerIndex].currentSuspicion += 2 * modifier
-        newState.players[playerIndex].currentSuspicion += 1 * modifier
+        if (playerIndex !== -1) {
+            const humanPlayer = newState.players[playerIndex];
+            humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + 4);
+        }
     })
     stateObj = await updateState(stateObj)
     return stateObj
@@ -477,17 +471,20 @@ async function swapWithPlayerLowestCard(stateObj, player, cardNum) {
     const currentPlayerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === player.name)
     const playerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === "player")
 
-    stateObj = immer.produce(stateObj, (newState) => {
-        let playHand = newState.players[playerIndex].currentHand
-        let playerCardIndex = (getCardRank(playHand[0]) > getCardRank(playHand[1])) ? 1 : 0
-        let playerCardToSwap = playHand[playerCardIndex]
-        let NPCCardToSwap = newState.players[currentPlayerIndex].currentHand[cardNum]
+    if (currentPlayerIndex === -1 || playerIndex === -1) {
+        return stateObj;
+    }
 
-        let modifier = (player.isStillInHand || player.name === "player") ? 2 : 1
+    stateObj = immer.produce(stateObj, (newState) => {
+        const playerHand = newState.players[playerIndex].currentHand
+        const playerCardIndex = (getCardRank(playerHand[0]) > getCardRank(playerHand[1])) ? 1 : 0
+        const playerCardToSwap = playerHand[playerCardIndex]
+        const NPCCardToSwap = newState.players[currentPlayerIndex].currentHand[cardNum]
+
         newState.players[currentPlayerIndex].currentHand[cardNum] = playerCardToSwap
         newState.players[playerIndex].currentHand[playerCardIndex] = NPCCardToSwap
-        newState.players[currentPlayerIndex].currentSuspicion += Math.floor(3 * modifier)
-        newState.players[playerIndex].currentSuspicion += 2 * modifier
+        const humanPlayer = newState.players[playerIndex];
+        humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + 5);
     })
     stateObj = await updateState(stateObj)
     return stateObj
@@ -586,7 +583,6 @@ async function resetHand(stateObj) {
         //
         newState.currentPot = 0
         newState.currentBet = 0
-        newState.groupSuspicion = 0
         newState.publicCards = []
         newState.gameStarted = true
         newState.actionOnPlayer = false;

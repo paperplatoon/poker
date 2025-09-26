@@ -30,16 +30,12 @@
 5. All state transitions should go through `immer.produce` (mutate inside the draft, then `await updateState`). Avoid mutating `state` directly.
 
 ## Suspicion & Cheating Systems
-- Suspicion exists at two levels: `state.groupSuspicion` (table) and `player.currentSuspicion` for each seat. Max values are 10 by default.
+- Suspicion now lives solely on the player. Their `currentSuspicion` (max 10 by default) drives the single meter rendered above the dealer seat.
 - Cheating abilities (all in `main.js`):
-  - `makeCardVisible` reveals an NPC hole card.
-  - `swapHandWithDeck` trades one card with the top of the deck.
-  - `swapWithPlayerLowestCard` swaps the player's weakest card with a chosen NPC card.
-- Each ability increases suspicion on both the victim and the player. A `modifier` doubles the penalty when the target is still in the hand.
-- Suspicion cool-downs:
-  - `dealPublicCards` knocks group suspicion down by up to 2 and subtracts 2 (NPCs) / 3 (player) from per-player suspicion.
-  - `resetHand` zeroes all suspicion at showdown.
-  - There is currently *no* explicit “lose chips to drop suspicion” hook; when implementing it, tie the reduction to `putInBet` or the showdown flow so losses can buy trust back.
+  - `makeCardVisible` reveals an NPC hole card (+3 suspicion).
+  - `swapHandWithDeck` trades one of your cards with the deck (+4 suspicion).
+  - `swapWithPlayerLowestCard` swaps your weakest card with an NPC card (+5 suspicion).
+- `dealPublicCards` trims the player's suspicion by 3 between streets, and `resetHand` clears it after a showdown or new deal.
 - Death checks live in `calcFunctions.js:444-465`: hitting max suspicion or busting chips ends the run (`window.location.reload()`).
 
 ## Rendering & Interaction

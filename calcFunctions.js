@@ -471,15 +471,15 @@ async function givePotToPlayer(stateObj, playerIndex) {
 }
 
 async function checkForDeath(stateObj) {
-    if (stateObj.groupSuspicion >= stateObj.maxGroupSuspicion) {
-        alert("The group as a whole became too suspicious! You have lost. Click OK to try again");
-        window.location.reload();
-    }
-    stateObj.players.forEach(player => {
+    const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+    if (playerIndex !== -1) {
+        const player = stateObj.players[playerIndex];
         if (player.currentSuspicion >= player.maxSuspicion) {
-            alert(player.name + " became too suspicious! You have lost. Click OK to try again");
+            alert("You became too suspicious! You have lost. Click OK to try again");
             window.location.reload();
         }
+    }
+    stateObj.players.forEach(player => {
         if (player.stackSize <= 0) {
             seatPosIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
             stateObj = immer.produce(stateObj, (newState) => {
@@ -488,7 +488,7 @@ async function checkForDeath(stateObj) {
             seatPositions.pop()
             if (player.name === "player") {
                 alert("You got stacked! You have lost. Click OK to try again");
-        window.location.reload();
+                window.location.reload();
             }
         }
     })
