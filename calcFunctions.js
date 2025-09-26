@@ -61,8 +61,6 @@ function getBestPokerHand(cards) {
     return [bestHand, bestHandRank];
 }
 
-
-
 function putPairedCardsFirst(cardArray) {
     let pairStrings = [];
     let pairRanks = []
@@ -277,7 +275,6 @@ function compareHands(hand1, hand2) {
     }
 }
 
-
 function shuffle(cards) {
     for (let i = cards.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -314,7 +311,7 @@ function arraysAreEqual(arr1, arr2) {
     return true;
 }
 
-seatPositions = [
+const seatPositions = [
     "Dealer",
     "SB",
     "BB",
@@ -326,7 +323,7 @@ seatPositions = [
 //player at playerIndex has their .currentSeat property updated to the next in line
 async function moveToNextPlayer(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, (newState) => {
-        player = newState.players[playerIndex]
+        const player = newState.players[playerIndex]
         const playerSeatIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
         player.currentSeat = (playerSeatIndex === (seatPositions.length-1)) ? seatPositions[0] : seatPositions[(playerSeatIndex+1)]
     })
@@ -335,30 +332,61 @@ async function moveToNextPlayer(stateObj, playerIndex) {
 
 //all players have their .currentSeat property updated to next in line
 async function moveButton(stateObj) {
-    for (i=0; i < stateObj.players.length; i++) {
+    for (let i=0; i < stateObj.players.length; i++) {
         stateObj = await moveToNextPlayer(stateObj, i)
     }
     await updateState(stateObj)
     return stateObj
 }
 
+
+function getNextActiveSeat(stateObj, startSeat) {
+    const activePlayers = stateObj.players.filter(player => player.isStillInHand);
+    if (activePlayers.length === 0) {
+        return null;
+    }
+    if (activePlayers.length === 1) {
+        return activePlayers[0].currentSeat;
+    }
+    let startIndex = seatPositions.findIndex(seat => seat === startSeat);
+    if (startIndex === -1) {
+        startIndex = seatPositions.findIndex(seat => stateObj.players.some(player => player.currentSeat === seat));
+        if (startIndex === -1) {
+            return null;
+        }
+    }
+    const totalSeats = seatPositions.length;
+    for (let offset = 1; offset <= totalSeats; offset++) {
+        const seat = seatPositions[(startIndex + offset) % totalSeats];
+        const player = stateObj.players.find(loopPlayer => loopPlayer.currentSeat === seat);
+        if (!player || player.isStillInHand === false) {
+            continue;
+        }
+        return seat;
+    }
+    return null;
+}
+
 //state.currentPlayer goes to the next player
 async function nextPlayer(stateObj) {
-    stateObj = immer.produce(stateObj, async (newState) => {
-        //find the seatPositions index of the current Player
-        let currentPlayerIndex = seatPositions.findIndex(seatPosition => seatPosition === newState.currentPlayer)
-        newState.currentPlayer = (currentPlayerIndex === (seatPositions.length-1)) ? seatPositions[0] : seatPositions[(currentPlayerIndex+1)] 
-    })
-    console.log("current player is " + stateObj.currentPlayer)
-    return stateObj
+    const nextSeat = getNextActiveSeat(stateObj, stateObj.currentPlayer);
+    if (!nextSeat) {
+        console.warn('nextPlayer: no available active seat found');
+        return stateObj;
+    }
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.currentPlayer = nextSeat;
+    });
+    console.log("current player is " + stateObj.currentPlayer);
+    return stateObj;
 }
 
 async function makeCurrentPlayer(stateObj, seatToMake) {
-    stateObj = immer.produce(stateObj, async (newState) => {
-        newState.currentPlayer = seatToMake 
-    })
-    await updateState(stateObj)
-    return stateObj
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.currentPlayer = seatToMake;
+    });
+    await updateState(stateObj);
+    return stateObj;
 }
 
 async function playerChecks(stateObj, indexToCheck) {
@@ -378,13 +406,13 @@ async function actionOnPlayer(stateObj, changeStatus) {
 }
 
 async function playerFolds(stateObj, playerIndex) {
-    console.log("triggering playerFolds") 
-    stateObj = immer.produce(stateObj, async (newState) => {
-        newState.players[playerIndex].isStillInHand = false
-        newState.players[playerIndex].currentSuspicion = 0
-    })
-    await updateState(stateObj)
-    return stateObj
+    console.log("triggering playerFolds");
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.players[playerIndex].isStillInHand = false;
+        newState.players[playerIndex].currentSuspicion = 0;
+    });
+    await updateState(stateObj);
+    return stateObj;
 }
 //need to 
 async function determineHandWinner(stateObj) {

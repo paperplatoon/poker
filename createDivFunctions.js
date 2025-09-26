@@ -222,7 +222,7 @@ function createFoldDiv(stateObj) {
 function createSeeCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "See Hole Card - [4/2]"
+    seeCardDiv.textContent = "See Hole Card - [5/2]"
     seeCardDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "chooseVisibleCard")
     }
@@ -232,7 +232,7 @@ function createSeeCardDiv(stateObj) {
 function createSwapCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "Swap Hole Card - [6/4]"
+    seeCardDiv.textContent = "Swap Hole Card - [4/2]"
     seeCardDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "chooseToSwap")
     }

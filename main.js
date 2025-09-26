@@ -1,10 +1,8 @@
 
 //if big blind reaches player, we auto go to the flop
-
-//action seems to stop at playing after clicking divs
+//check button not working  ?? not dealing 5th card after "starting postflop action"
 
 //big blind's cards change after flop?
-//bug when clicking callDiv as small blind -> currentBet is only 2?
 //raise div doesn't work if player is big blind lmfao
 //implement bet slider
 //separate out top pair vs middle pair vs bottom pair for hand ranks
@@ -16,6 +14,13 @@ async function updateState(newStateObj) {
     await checkForDeath(newStateObj)
     await renderScreen(state)
     return state
+}
+
+function shuffleArray(array) {
+    return array
+      .map((value) => ({ value, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ value }) => value);
 }
 
 async function renderScreen(stateObj) {
@@ -264,6 +269,7 @@ async function preFlopAction(stateObj) {
                 }
                 stateObj = await nextPlayer(stateObj)
                 await pause(500)
+                stateObj = await updateState(stateObj) 
             }    
         }
     }
@@ -287,11 +293,11 @@ async function postFlopAction(stateObj) {
                 if (stateObj.publicCards.length < 5) {
                     stateObj = await dealPublicCards(stateObj, 1)
                     await postFlopAction(stateObj)
-                    return true
+                    return stateObj
                 } else {
                     stateObj = await determineHandWinner(stateObj)
                     await newHand(stateObj)
-                    return true
+                    return stateObj
                 }
             } else if (player.isStillInHand === false) {
                 //skip the player because they're no longer in the hand
@@ -417,10 +423,10 @@ async function postFlopAction(stateObj) {
                         stateObj = await playerFolds(stateObj, playerInd)
                     }
                 }
+                stateObj = await nextPlayer(stateObj)
+                await pause(500)
+                stateObj = await updateState(stateObj) 
             }
-            stateObj = await nextPlayer(stateObj)
-            await pause(500)
-            stateObj = await updateState(stateObj) 
         }
         stateObj = await updateState(stateObj)
     }
@@ -436,11 +442,11 @@ async function makeCardVisible(stateObj, player, cardNum) {
             let modifier = (player.isStillInHand) ? 2 : 1
             if (cardNum === 0) {
                 newState.players[currentPlayerIndex].leftCardVisible = true
-                newState.players[currentPlayerIndex].currentSuspicion += 2 * modifier
+                newState.players[currentPlayerIndex].currentSuspicion += Math.floor(2.5 * modifier)
                 newState.players[playerIndex].currentSuspicion += 1 * modifier
             } else {
                 newState.players[currentPlayerIndex].rightCardVisible = true
-                newState.players[currentPlayerIndex].currentSuspicion += 2 * modifier
+                newState.players[currentPlayerIndex].currentSuspicion += Math.floor(2.5 * modifier)
                 newState.players[playerIndex].currentSuspicion += 1 * modifier 
             }
         })
@@ -460,8 +466,8 @@ async function swapHandWithDeck(stateObj, player, cardNum) {
         let playerCardToSwap = player.currentHand[cardNum]
         newState.players[currentPlayerIndex].currentHand[cardNum] = newState.currentDeck[randomCardIndex]
         newState.currentDeck[randomCardIndex] = playerCardToSwap
-        newState.players[currentPlayerIndex].currentSuspicion += 3 * modifier
-        newState.players[playerIndex].currentSuspicion += 2 * modifier
+        newState.players[currentPlayerIndex].currentSuspicion += 2 * modifier
+        newState.players[playerIndex].currentSuspicion += 1 * modifier
     })
     stateObj = await updateState(stateObj)
     return stateObj
