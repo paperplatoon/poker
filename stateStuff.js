@@ -15,6 +15,7 @@ state = {
 
     currentDeck: [],
     currentScreen: "chooseVisibleCard",
+    selectedSwapTarget: null,
     
 }
 
@@ -37,7 +38,7 @@ function Player() {
     this.currentSeat = false;
     this.currentSuspicion = 0;
     this.maxSuspicion = 10;
-    this.stackSize = 400; // Arbitrary starting amount
+    this.stackSize = 100; // Arbitrary starting amount
     this.isStillInHand = true;
     this.currentBet = 0;
     this.hasChecked = false;

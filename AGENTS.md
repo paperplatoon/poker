@@ -34,7 +34,7 @@
 - Cheating abilities (all in `main.js`):
   - `makeCardVisible` reveals an NPC hole card (+3 suspicion).
   - `swapHandWithDeck` trades one of your cards with the deck (+4 suspicion).
-  - `swapWithPlayerLowestCard` swaps your weakest card with an NPC card (+5 suspicion).
+  - `selectSwapTarget` lets you pick an NPC card; follow with `swapWithSelectedCard` to trade it with either of your hole cards (+5 suspicion).
 - `dealPublicCards` trims the player's suspicion by 3 between streets, and `resetHand` clears it after a showdown or new deal.
 - Death checks live in `calcFunctions.js:444-465`: hitting max suspicion or busting chips ends the run (`window.location.reload()`).
 
@@ -42,6 +42,7 @@
 - Rendering is DOM-driven. `renderPokerTable` wipes `document.body`, rebuilds all player nodes, and wires up action buttons depending on `state.currentScreen` and betting state.
 - `createDivFunctions.js` contains reusable div factories; keep additions consistent (class names align with CSS).
 - `state.currentScreen` gates the cheat overlays (`"chooseVisibleCard"`, `"chooseToSwap"`, `"swapPlayerNPC"`). Set it with `changeCurrentScreen` before prompting the user.
+- When `state.currentScreen === "swapPlayerNPC"`, the UI expects a two-step swap: click an NPC card (stored on `state.selectedSwapTarget`), then click either player hole card via `swapWithSelectedCard`. A cancel button appears whenever a target is selected.
 
 ## Turn System – Current Pain Points
 - Seat order is stored in `seatPositions` (Dealer → CO) in `calcFunctions.js`. NPC seats rotate through `moveButton`, but the human remains permanently labeled `"Dealer"`.

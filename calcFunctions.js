@@ -497,6 +497,9 @@ async function checkForDeath(stateObj) {
 async function changeCurrentScreen(stateObj, screenString) {
     stateObj = immer.produce(stateObj, (newState) => {
         newState.currentScreen = screenString
+        if (screenString !== "swapPlayerNPC") {
+            newState.selectedSwapTarget = null;
+        }
     })
     await updateState(stateObj)
 }

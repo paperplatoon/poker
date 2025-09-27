@@ -70,6 +70,7 @@ async function dealPublicCards(stateObj, numberCards) {
 
     stateObj = immer.produce(stateObj, (newState) => {
         newState.currentBet = 0;
+        newState.selectedSwapTarget = null;
         const playerIndex = newState.players.findIndex(loopPlayer => loopPlayer.name === "player");
         newState.players.forEach(player => {
             player.currentBet = 0;
@@ -77,7 +78,7 @@ async function dealPublicCards(stateObj, numberCards) {
         });
         if (playerIndex !== -1) {
             const player = newState.players[playerIndex];
-            player.currentSuspicion = Math.max(0, player.currentSuspicion - 3);
+            player.currentSuspicion = Math.max(0, player.currentSuspicion - endOfTurnSuspicionDecreaseValue);
         }
     })
     
@@ -436,7 +437,7 @@ async function makeCardVisible(stateObj, player, cardNum) {
             }
             if (playerIndex !== -1) {
                 const humanPlayer = newState.players[playerIndex];
-                humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + 3);
+                humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + seeHoleCardValue);
             }
         })
     }
@@ -460,34 +461,62 @@ async function swapHandWithDeck(stateObj, player, cardNum) {
         newState.currentDeck[randomCardIndex] = playerCardToSwap
         if (playerIndex !== -1) {
             const humanPlayer = newState.players[playerIndex];
-            humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + 4);
+            humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + swapHandCardWithDeckValue);
         }
     })
     stateObj = await updateState(stateObj)
     return stateObj
 }
 
-async function swapWithPlayerLowestCard(stateObj, player, cardNum) {
-    const currentPlayerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === player.name)
-    const playerIndex = stateObj.players.findIndex(loopPlayer => loopPlayer.name === "player")
-
-    if (currentPlayerIndex === -1 || playerIndex === -1) {
+async function selectSwapTarget(stateObj, targetPlayerName, cardIndex) {
+    const targetPlayerIndex = stateObj.players.findIndex(player => player.name === targetPlayerName);
+    if (targetPlayerIndex === -1) {
         return stateObj;
     }
-
     stateObj = immer.produce(stateObj, (newState) => {
-        const playerHand = newState.players[playerIndex].currentHand
-        const playerCardIndex = (getCardRank(playerHand[0]) > getCardRank(playerHand[1])) ? 1 : 0
-        const playerCardToSwap = playerHand[playerCardIndex]
-        const NPCCardToSwap = newState.players[currentPlayerIndex].currentHand[cardNum]
+        const currentTarget = newState.selectedSwapTarget;
+        if (currentTarget && currentTarget.playerName === targetPlayerName && currentTarget.cardIndex === cardIndex) {
+            newState.selectedSwapTarget = null;
+        } else {
+            newState.selectedSwapTarget = { playerName: targetPlayerName, cardIndex };
+        }
+    });
+    stateObj = await updateState(stateObj);
+    return stateObj;
+}
 
-        newState.players[currentPlayerIndex].currentHand[cardNum] = playerCardToSwap
-        newState.players[playerIndex].currentHand[playerCardIndex] = NPCCardToSwap
+async function cancelSwapSelection(stateObj) {
+    stateObj = immer.produce(stateObj, (newState) => {
+        newState.selectedSwapTarget = null;
+    });
+    stateObj = await updateState(stateObj);
+    return stateObj;
+}
+
+async function swapWithSelectedCard(stateObj, playerCardIndex) {
+    const selection = stateObj.selectedSwapTarget;
+    if (!selection) {
+        return stateObj;
+    }
+    const targetPlayerIndex = stateObj.players.findIndex(player => player.name === selection.playerName);
+    const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+    if (targetPlayerIndex === -1 || playerIndex === -1) {
+        return stateObj;
+    }
+    stateObj = immer.produce(stateObj, (newState) => {
+        const targetPlayer = newState.players[targetPlayerIndex];
         const humanPlayer = newState.players[playerIndex];
-        humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + 5);
-    })
-    stateObj = await updateState(stateObj)
-    return stateObj
+        if (!targetPlayer.currentHand[selection.cardIndex] || !humanPlayer.currentHand[playerCardIndex]) {
+            return;
+        }
+        const tempCard = humanPlayer.currentHand[playerCardIndex];
+        humanPlayer.currentHand[playerCardIndex] = targetPlayer.currentHand[selection.cardIndex];
+        targetPlayer.currentHand[selection.cardIndex] = tempCard;
+        humanPlayer.currentSuspicion = Math.min(humanPlayer.maxSuspicion, humanPlayer.currentSuspicion + swapLowestCardWithOpponentValue);
+        newState.selectedSwapTarget = null;
+    });
+    stateObj = await updateState(stateObj);
+    return stateObj;
 }
 
 
@@ -546,7 +575,14 @@ async function renderPokerTable(stateObj) {
     const seeCardDiv = createSeeCardDiv(stateObj)
     const swapCardDiv = createSwapCardDiv(stateObj)
     const swapPlayerNPCDiv = createSwapPlayerCardDiv(stateObj)
-    playerSpellsDiv.append(seeCardDiv, swapCardDiv, swapPlayerNPCDiv)
+    const cancelSwapDiv = createCancelSwapDiv(stateObj)
+    const swapControlsDiv = document.createElement('div')
+    swapControlsDiv.classList.add('spell-row')
+    swapControlsDiv.appendChild(swapPlayerNPCDiv)
+    if (cancelSwapDiv) {
+        swapControlsDiv.appendChild(cancelSwapDiv)
+    }
+    playerSpellsDiv.append(seeCardDiv, swapCardDiv, swapControlsDiv)
 
     const topDiv = createDiv("top-screenhalf-div")
     topDiv.append(playerActionsDiv, playerSpellsDiv)
@@ -584,6 +620,7 @@ async function resetHand(stateObj) {
         newState.currentPot = 0
         newState.currentBet = 0
         newState.publicCards = []
+        newState.selectedSwapTarget = null;
         newState.gameStarted = true
         newState.actionOnPlayer = false;
     })

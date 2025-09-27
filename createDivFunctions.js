@@ -1,3 +1,8 @@
+seeHoleCardValue = 2;
+swapHandCardWithDeckValue = 1;
+swapLowestCardWithOpponentValue = 4;
+endOfTurnSuspicionDecreaseValue = 5;
+
 function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) {
     const playerDiv = createDiv('playerDiv')
     playerDiv.style.top = positionTop;
@@ -73,14 +78,23 @@ function createPlayerCardsDiv(player, cardFunctionString) {
                 };
             }
         } else if (cardFunctionString === "swapPlayerNPC") {
-            cardDiv.classList.add('card-clickable');
-            if (j===0) {
-                cardDiv.onclick = async function() {
-                    await swapWithPlayerLowestCard(state, player, 0);
-                };
+            const swapTarget = state.selectedSwapTarget;
+            if (player.name === "player") {
+                if (swapTarget) {
+                    cardDiv.classList.add('card-clickable', 'swap-player-option');
+                    cardDiv.onclick = async function() {
+                        await swapWithSelectedCard(state, j);
+                    };
+                } else {
+                    cardDiv.classList.add('swap-player-await');
+                }
             } else {
+                cardDiv.classList.add('card-clickable', 'swap-target-option');
+                if (swapTarget && swapTarget.playerName === player.name && swapTarget.cardIndex === j) {
+                    cardDiv.classList.add('swap-target-selected');
+                }
                 cardDiv.onclick = async function() {
-                    await swapWithPlayerLowestCard(state, player, 1);
+                    await selectSwapTarget(state, player.name, j);
                 };
             }
         }
@@ -224,7 +238,7 @@ function createFoldDiv(stateObj) {
 function createSeeCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "See Hole Card [+3]"
+    seeCardDiv.textContent = "See Hole Card [+" + seeHoleCardValue + " suspicion]"
     if (stateObj.currentScreen === "chooseVisibleCard") {
         seeCardDiv.classList.add('spell-selected');
     }
@@ -237,7 +251,7 @@ function createSeeCardDiv(stateObj) {
 function createSwapCardDiv(stateObj) {
     let seeCardDiv = document.createElement('div');
     seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "Swap Hole Card [+4]"
+    seeCardDiv.textContent = "Swap Hole Card [+" + swapHandCardWithDeckValue + " suspicion]"
     if (stateObj.currentScreen === "chooseToSwap") {
         seeCardDiv.classList.add('spell-selected');
     }
@@ -248,16 +262,29 @@ function createSwapCardDiv(stateObj) {
 }
 
 function createSwapPlayerCardDiv(stateObj) {
-    let seeCardDiv = document.createElement('div');
-    seeCardDiv.classList.add('spell-div', 'centered');
-    seeCardDiv.textContent = "Swap With Your Lowest Card [+5]"
+    let swapDiv = document.createElement('div');
+    swapDiv.classList.add('spell-div', 'centered');
+    swapDiv.textContent = "Swap Player Cards [+" + swapLowestCardWithOpponentValue + " suspicion]"
     if (stateObj.currentScreen === "swapPlayerNPC") {
-        seeCardDiv.classList.add('spell-selected');
+        swapDiv.classList.add('spell-selected');
     }
-    seeCardDiv.onclick = async function() {
+    swapDiv.onclick = async function() {
         await changeCurrentScreen(stateObj, "swapPlayerNPC")
     }
-    return seeCardDiv
+    return swapDiv
+}
+
+function createCancelSwapDiv(stateObj) {
+    if (stateObj.currentScreen !== "swapPlayerNPC" || !stateObj.selectedSwapTarget) {
+        return null;
+    }
+    const cancelDiv = document.createElement('div');
+    cancelDiv.classList.add('spell-div', 'centered', 'spell-cancel');
+    cancelDiv.textContent = 'Cancel Swap';
+    cancelDiv.onclick = async function() {
+        await cancelSwapSelection(stateObj);
+    }
+    return cancelDiv;
 }
 
 function createCallDiv(stateObj) {
