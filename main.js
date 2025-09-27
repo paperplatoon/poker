@@ -454,6 +454,10 @@ async function swapHandWithDeck(stateObj, player, cardNum) {
         return stateObj;
     }
 
+    if (player.name !== "player") {
+        return stateObj;
+    }
+
     stateObj = immer.produce(stateObj, (newState) => {
         const randomCardIndex = Math.floor(Math.random() * newState.currentDeck.length)
         const playerCardToSwap = newState.players[currentPlayerIndex].currentHand[cardNum]
@@ -471,6 +475,9 @@ async function swapHandWithDeck(stateObj, player, cardNum) {
 async function selectSwapTarget(stateObj, targetPlayerName, cardIndex) {
     const targetPlayerIndex = stateObj.players.findIndex(player => player.name === targetPlayerName);
     if (targetPlayerIndex === -1) {
+        return stateObj;
+    }
+    if (stateObj.players[targetPlayerIndex].isStillInHand === false) {
         return stateObj;
     }
     stateObj = immer.produce(stateObj, (newState) => {
@@ -501,6 +508,9 @@ async function swapWithSelectedCard(stateObj, playerCardIndex) {
     const targetPlayerIndex = stateObj.players.findIndex(player => player.name === selection.playerName);
     const playerIndex = stateObj.players.findIndex(player => player.name === "player");
     if (targetPlayerIndex === -1 || playerIndex === -1) {
+        return stateObj;
+    }
+    if (stateObj.players[targetPlayerIndex].isStillInHand === false) {
         return stateObj;
     }
     stateObj = immer.produce(stateObj, (newState) => {
@@ -646,4 +656,3 @@ async function newHand(stateObj, firstHand=false) {
 
 
 startGame()
-

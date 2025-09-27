@@ -56,26 +56,30 @@ function createPlayerCardsDiv(player, cardFunctionString) {
         const cardDiv = createDiv('cardDiv');
         //if you're in the 'Choose a card to turn visible' state
         if (cardFunctionString=="chooseToTurnVisible") {
-            cardDiv.classList.add('card-clickable');
-            if (j===0) {
-                cardDiv.onclick = async function() {
-                    await makeCardVisible(state, player, 0);
-                };
-            } else {
-                cardDiv.onclick = async function() {
-                    await makeCardVisible(state, player, 1);
-                };
+            if (player.name !== "player" && player.isStillInHand) {
+                cardDiv.classList.add('card-clickable', 'peek-target-option');
+                if (j===0) {
+                    cardDiv.onclick = async function() {
+                        await makeCardVisible(state, player, 0);
+                    };
+                } else {
+                    cardDiv.onclick = async function() {
+                        await makeCardVisible(state, player, 1);
+                    };
+                }
             }
         } else if (cardFunctionString === "chooseToSwap") {
-            cardDiv.classList.add('card-clickable');
-            if (j===0) {
-                cardDiv.onclick = async function() {
-                    await swapHandWithDeck(state, player, 0);
-                };
-            } else {
-                cardDiv.onclick = async function() {
-                    await swapHandWithDeck(state, player, 1);
-                };
+            if (player.name === "player") {
+                cardDiv.classList.add('card-clickable', 'swap-deck-option');
+                if (j===0) {
+                    cardDiv.onclick = async function() {
+                        await swapHandWithDeck(state, player, 0);
+                    };
+                } else {
+                    cardDiv.onclick = async function() {
+                        await swapHandWithDeck(state, player, 1);
+                    };
+                }
             }
         } else if (cardFunctionString === "swapPlayerNPC") {
             const swapTarget = state.selectedSwapTarget;
@@ -89,13 +93,15 @@ function createPlayerCardsDiv(player, cardFunctionString) {
                     cardDiv.classList.add('swap-player-await');
                 }
             } else {
-                cardDiv.classList.add('card-clickable', 'swap-target-option');
-                if (swapTarget && swapTarget.playerName === player.name && swapTarget.cardIndex === j) {
-                    cardDiv.classList.add('swap-target-selected');
+                if (player.isStillInHand) {
+                    cardDiv.classList.add('card-clickable', 'swap-target-option');
+                    if (swapTarget && swapTarget.playerName === player.name && swapTarget.cardIndex === j) {
+                        cardDiv.classList.add('swap-target-selected');
+                    }
+                    cardDiv.onclick = async function() {
+                        await selectSwapTarget(state, player.name, j);
+                    };
                 }
-                cardDiv.onclick = async function() {
-                    await selectSwapTarget(state, player.name, j);
-                };
             }
         }
         //if cards are visible, show their value; if not, add the invisible class
