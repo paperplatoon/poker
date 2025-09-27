@@ -445,7 +445,13 @@ async function determineHandWinner(stateObj) {
         }
     }
     const winnerIndex = stateObj.players.findIndex(player => player.name === playersStillInHand[0].name)
+    const survivingNames = new Set(playersStillInHand.map(player => player.name));
     stateObj = immer.produce(stateObj, (newState) => {
+        newState.players.forEach(player => {
+            if (!survivingNames.has(player.name) && player.isStillInHand === true) {
+                player.isStillInHand = false;
+            }
+        });
         winnerStats =  getBestPokerHand(newState.players[winnerIndex].currentHand.concat(newState.publicCards))
         newState.players[winnerIndex].stackSize += newState.currentPot
         console.log (newState.players[winnerIndex].name + " wins " + newState.currentPot + " with " + winnerStats[0] )
@@ -480,7 +486,7 @@ async function checkForDeath(stateObj) {
         }
     }
     stateObj.players.forEach(player => {
-        if (player.stackSize <= 0) {
+        if (player.stackSize <= 0 && player.isStillInHand === false && stateObj.currentPot === 0) {
             seatPosIndex = seatPositions.findIndex(seatPosition => seatPosition === player.currentSeat)
             stateObj = immer.produce(stateObj, (newState) => {
                 newState.players.splice(seatPosIndex, 1)
