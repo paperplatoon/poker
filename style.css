@@ -62,7 +62,7 @@
 .player-actions-inline {
     width: 100%;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 0.8vh;
     margin-top: 1.5vh;
@@ -72,10 +72,10 @@
     background-color: #5ca0f2;
     background-image: linear-gradient(315deg, #2983f2 0%, #bdeaef 74%);
     color: rgb(2, 0, 24);
-    width: 50vw; 
+    width: 25vw; 
     height: 7vh;
     line-height: 7vh;
-    font-size: 3vmin;
+    font-size: 2.5vmin;
     margin: 4px;
     cursor: pointer;
 }

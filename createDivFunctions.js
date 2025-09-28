@@ -208,7 +208,7 @@ function createBettingDiv(buttonString) {
 function createRaiseDiv(stateObj) {
     let RaiseDiv = document.createElement('div');
     RaiseDiv.classList.add('action-div', 'centered')
-    const betUnit = stateObj.publicCards.length >= 4 ? 4 : 2;
+    const betUnit = stateObj.currentBet + (stateObj.publicCards.length >= 4 ? 4 : 2);
     RaiseDiv.textContent = `Raise ${betUnit}`
     RaiseDiv.onclick = async function() {
         stateObj = {...state}
