@@ -16,7 +16,8 @@ state = {
     currentDeck: [],
     currentScreen: "chooseVisibleCard",
     selectedSwapTarget: null,
-    
+    playerUnbelievability: 1,
+
 }
 
 const possibleNames = ["Alex", "Casey", "Charlie", "Dakota", "Emerson", "Finn", "Harper", "Jamie", "Jordan", "Kai", "Morgan", "Parker", "Quinn", "Reese", "Riley", "River", "Rowan", "Skyler", "Taylor"];

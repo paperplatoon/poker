@@ -16,6 +16,30 @@ async function updateState(newStateObj) {
     return state
 }
 
+function getUnbelievabilityRankShift(level) {
+    return Math.floor(level / 2);
+}
+
+function getAdjustedHeroCallPercentage(basePercentage, level) {
+    const adjusted = basePercentage + (level * 0.15);
+    return Math.max(0, Math.min(1.5, adjusted));
+}
+
+function getAdjustedBetThreshold(baseThreshold, level) {
+    const multiplier = 1 + (level * 0.15);
+    const safeMultiplier = multiplier < 0.25 ? 0.25 : multiplier;
+    return Math.max(0, baseThreshold * safeMultiplier);
+}
+
+function getLooseCallProbability(level) {
+    const probability = 0.5 + (level * 0.1);
+    return Math.max(0.1, Math.min(0.9, probability));
+}
+
+function getLimitBetUnit(stateObj) {
+    return stateObj.publicCards.length >= 4 ? 4 : 2;
+}
+
 function shuffleArray(array) {
     return array
       .map((value) => ({ value, sort: Math.random() }))
@@ -141,7 +165,7 @@ async function putInBlinds(stateObj) {
     stateObj = await putInBet(stateObj, SBIndex, 1)
 
     stateObj = await makeCurrentPlayer(stateObj, "BB")
-    stateObj = await putInBet(stateObj, BBIndex, 3)
+    stateObj = await putInBet(stateObj, BBIndex, 2)
     stateObj = await makeCurrentPlayer(stateObj, "UTG")
     return stateObj
 }
@@ -191,14 +215,16 @@ async function preFlopAction(stateObj) {
                 //console.log(player.name + " has a call value of " + callValue.toFixed(2) + " and a threshold of " + callThreshold.toFixed(2))
                 const willCall = callValue < player.callwithJunkPreFlopPercentage
                 let moneyIn = stateObj.currentBet
-                if (stateObj.currentBet === 3) {
+                const preflopBetUnit = getLimitBetUnit(stateObj);
+                const raiseTarget = stateObj.currentBet + preflopBetUnit;
+                if (stateObj.currentBet === 2) {
                     //####FIX - SHOULD INSTEAD CONSTRUCT EACH PLAYER TO HAVE A FOURBET AND RFI RANGE 
                     if (isHandInRange(player.currentHand, player.playerDetails['raiseFirstInArray'])) {
                         if (callValue < player.playerDetails['trapPreflopPercentage']) {
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
                             console.log(player.name + " is trapping")
                         } else {
-                            stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
+                            stateObj = await putInBet(stateObj, playerInd, raiseTarget)
                             console.log(player.name + " is raising with RFI")
                         }
                     } else if (isHandInRange(player.currentHand, player.playerDetails['limpArray'])) {
@@ -221,7 +247,7 @@ async function preFlopAction(stateObj) {
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
                         } else {
                             console.log(player.name + " is raising with re-raise range")
-                            stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
+                            stateObj = await putInBet(stateObj, playerInd, raiseTarget)
                         }
                     } else if (isHandInRange(player.currentHand, player.playerDetails['callRaisePreFlopArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
@@ -239,7 +265,7 @@ async function preFlopAction(stateObj) {
                             stateObj = await putInBet(stateObj, playerInd, moneyIn)
                         } else {
                             console.log(player.name + " is raising with a 4bet hand")
-                            stateObj = await putInBet(stateObj, playerInd, moneyIn*4)
+                            stateObj = await putInBet(stateObj, playerInd, raiseTarget)
                         }
                     } else if (isHandInRange(player.currentHand, player.playerDetails['reRaisePreflopArray'])) {
                         stateObj = await putInBet(stateObj, playerInd, moneyIn)
@@ -297,18 +323,23 @@ async function postFlopAction(stateObj) {
                 playerHandRank = getBestPokerHand(player.currentHand.concat(stateObj.publicCards))[1]
                 console.log(player.name + " hand rank is " + playerHandRank)
                 const bluffOrTrap = Math.random()
-                console.log(player.name + " rank to continue on flop is " + player.playerDetails['MinRankToContinueOnFlop'] + " and rank to raise flop is " + player.playerDetails['minRankToRaiseOnFlop'] )
+                const unbelievabilityLevel = Math.max(0, Math.min(4, stateObj.playerUnbelievability || 0));
+                const rankShift = getUnbelievabilityRankShift(unbelievabilityLevel);
+                const adjustedRaiseRank = Math.max(1, player.playerDetails['minRankToRaiseOnFlop'] - rankShift);
+                const adjustedContinueRank = Math.max(1, player.playerDetails['MinRankToContinueOnFlop'] - rankShift);
+                const adjustedHeroCallPercentage = getAdjustedHeroCallPercentage(player.playerDetails['HeroCallPercentage'], unbelievabilityLevel);
+                const adjustedCheapCallThreshold = getAdjustedBetThreshold(player.playerDetails['tooRichForJunkCallFlopThreshold'], unbelievabilityLevel);
+                const adjustedFoldTripsThreshold = getAdjustedBetThreshold(player.playerDetails['ThresholdForFoldWithLessThanTrips'], unbelievabilityLevel);
+                const looseCallProbability = getLooseCallProbability(unbelievabilityLevel);
+                const betUnit = getLimitBetUnit(stateObj);
+                const limitBetTarget = stateObj.currentBet + betUnit;
+                console.log(player.name + " rank to continue on flop is " + adjustedContinueRank + " and rank to raise flop is " + adjustedRaiseRank )
                 if (stateObj.currentBet === 0) {
-                    if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
+                    if (playerHandRank >= adjustedContinueRank) {
                         //even if player has good hand, they trap sometimes
                         if (bluffOrTrap > player.playerDetails['trapFlopPercentage']) {
-                            if (stateObj.currentPot >= player.playerDetails['ThresholdForFoldWithLessThanTrips']) {
-                                console.log(player.name + " is betting out with a decent hand for cheap cuz pot is high ")
-                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentPot/3.5))    
-                            } else {
-                                console.log(player.name + " is betting out with a decent hand")
-                                stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
-                            }
+                            console.log(player.name + " is betting out with a decent hand")
+                            stateObj = await putInBet(stateObj, playerInd, limitBetTarget)
                         } else {
                             console.log(player.name + " is checking to trap")
                             stateObj = await playerChecks(stateObj, playerInd)
@@ -316,32 +347,27 @@ async function postFlopAction(stateObj) {
                     } else {
                         //if player has bad hand, they bluff at pot sometimes
                         if (bluffOrTrap < player.playerDetails['BluffFlopPercentage']) {
-                            if (stateObj.currentPot >= player.playerDetails['ThresholdForFoldWithLessThanTrips']) {
-                                console.log(player.name + " is bluffing cheap cuz the pot is high")
-                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentPot/3.5))    
-                            } else {
-                                console.log(player.name + " is bluffing")
-                                stateObj = await putInBet(stateObj, playerInd, stateObj.currentPot/2)
-                            }
+                            console.log(player.name + " is bluffing")
+                            stateObj = await putInBet(stateObj, playerInd, limitBetTarget)
                         } else {
                             console.log(player.name + " is checking with a bad hand")
                             stateObj = await playerChecks(stateObj, playerInd)
                         }
                     }
-                } else if (stateObj.currentBet < player.playerDetails['tooRichForJunkCallFlopThreshold']) {
-                    if (playerHandRank >= player.playerDetails['minRankToRaiseOnFlop']) {
+                } else if (stateObj.currentBet < adjustedCheapCallThreshold) {
+                    if (playerHandRank >= adjustedRaiseRank) {
                         //even if player has good hand, they trap sometimes
                         if (bluffOrTrap > player.playerDetails['trapFlopPercentage']) {
                             console.log(player.name + " is raising with a good hand")
-                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentBet * Math.floor(Math.random() * (3 - 2 + 1) + 2)))
+                                stateObj = await putInBet(stateObj, playerInd, limitBetTarget)
                         } else {
                             console.log(player.name + " is trapping with a good raise hand")
                             stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                         }
-                    } else if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
+                    } else if (playerHandRank >= adjustedContinueRank) {
                         //player always calls small bet if they have a good hand but not great
                         if (playerHandRank === 1) {
-                            if (bluffOrTrap < 0.5) {
+                            if (bluffOrTrap < looseCallProbability) {
                                 stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                                 console.log(player.name + " continuation bets with nothing cuz they're reckless")
                             } else {
@@ -357,10 +383,10 @@ async function postFlopAction(stateObj) {
                         //YOU ARE HERE
                         if ((bluffOrTrap * 3) < player.playerDetails['BluffFlopPercentage']) {
                             console.log(player.name + " is raising as a bluff with a crap hand")
-                                stateObj = await putInBet(stateObj, playerInd, Math.floor(stateObj.currentBet * Math.floor(Math.random() * (3 - 2 + 1) + 2)))   
+                                stateObj = await putInBet(stateObj, playerInd, limitBetTarget)
                         } else {
                             console.log(player.name + " is hero calling with a bad hand cuz the pot is cheap")
-                            if (bluffOrTrap < player.playerDetails['HeroCallPercentage']) {
+                            if (bluffOrTrap < adjustedHeroCallPercentage) {
                                 stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                             } else {
                                 console.log(player.name + " is folding even tho pot is cheap")
@@ -368,10 +394,10 @@ async function postFlopAction(stateObj) {
                             }
                         }
                     }
-                } else if (stateObj.currentBet < player.playerDetails['ThresholdForFoldWithLessThanTrips']) {
-                    if (playerHandRank >= player.playerDetails['minRankToRaiseOnFlop']) {
+                } else if (stateObj.currentBet < adjustedFoldTripsThreshold) {
+                    if (playerHandRank >= adjustedRaiseRank) {
                         if (playerHandRank === 1) {
-                            if (bluffOrTrap < 0.5) {
+                            if (bluffOrTrap < looseCallProbability) {
                                 stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                                 console.log(player.name + " calls bets with nothing cuz they're reckless")
                             } else {
@@ -382,8 +408,8 @@ async function postFlopAction(stateObj) {
                             console.log(player.name + " is calling with a decent hand")
                             stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                         }
-                    } else if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
-                        if ((bluffOrTrap * 2) < player.playerDetails['HeroCallPercentage']) {
+                    } else if (playerHandRank >= adjustedContinueRank) {
+                        if ((bluffOrTrap * 2) < adjustedHeroCallPercentage) {
                             console.log(player.name + " is hero calling even though the pot is big bc they have a decent hand")
                             stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                         } else {
@@ -395,11 +421,11 @@ async function postFlopAction(stateObj) {
                         stateObj = await playerFolds(stateObj, playerInd)
                     }
                 } else {
-                    if (playerHandRank >= player.playerDetails['minRankToRaiseOnFlop']) {
+                    if (playerHandRank >= adjustedRaiseRank) {
                         console.log(player.name + " is calling even tho bet is huge cuz they have a good hand")
                         stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
-                    } else if (playerHandRank >= player.playerDetails['MinRankToContinueOnFlop']) {
-                        if ((bluffOrTrap * 4) < player.playerDetails['HeroCallPercentage']) {
+                    } else if (playerHandRank >= adjustedContinueRank) {
+                        if ((bluffOrTrap * 4) < adjustedHeroCallPercentage) {
                             console.log(player.name + " is hero calling with a decent hand even tho pot is huge")
                             stateObj = await putInBet(stateObj, playerInd, stateObj.currentBet)
                         } else {
@@ -551,35 +577,39 @@ async function renderPokerTable(stateObj) {
     ];
 
     for (let i = 0; i < 6; i++) {
+        const loopPlayer = state.players[i];
         if (stateObj.currentScreen === "chooseVisibleCard") {
-            playerDiv = createPlayerDiv(state.players[i], positions[i].top, positions[i].left, "chooseToTurnVisible")
+            playerDiv = createPlayerDiv(loopPlayer, positions[i].top, positions[i].left, "chooseToTurnVisible")
         } else if (stateObj.currentScreen === "chooseToSwap") {
-            playerDiv = createPlayerDiv(state.players[i], positions[i].top, positions[i].left, "chooseToSwap")
+            playerDiv = createPlayerDiv(loopPlayer, positions[i].top, positions[i].left, "chooseToSwap")
         } else if (stateObj.currentScreen === "swapPlayerNPC") {
-            playerDiv = createPlayerDiv(state.players[i], positions[i].top, positions[i].left, "swapPlayerNPC")
+            playerDiv = createPlayerDiv(loopPlayer, positions[i].top, positions[i].left, "swapPlayerNPC")
         }
-        
+
+        if (loopPlayer.name === "player") {
+            const playerActionsDiv = createDiv('player-actions-inline');
+            const foldDiv = createFoldDiv(stateObj);
+            const callDiv = createCallDiv(stateObj);
+            const betDiv = createBetDiv(stateObj);
+            const raiseDiv = createRaiseDiv(stateObj);
+            const checkDiv = createCheckDiv(stateObj);
+
+            if (stateObj.currentBet === 0) {
+                playerActionsDiv.append(checkDiv, betDiv);
+            } else if (loopPlayer.currentBet === stateObj.currentBet) {
+                playerActionsDiv.append(checkDiv, raiseDiv);
+            } else {
+                playerActionsDiv.append(foldDiv, callDiv, raiseDiv);
+            }
+
+            playerDiv.appendChild(playerActionsDiv);
+        }
+
         tableDiv.appendChild(playerDiv);
     }
 
     const potDiv = createPotDiv(stateObj)
     const publicCardsDiv = createPublicCardsDiv(stateObj)
-    let foldDiv = createFoldDiv(stateObj)
-    const callDiv = createCallDiv(stateObj)
-    const betDiv = createBetDiv(stateObj)
-    let RaiseDiv = createRaiseDiv(stateObj)
-    const checkDiv = createCheckDiv(stateObj)
-
-    
-    const playerActionsDiv = createDiv('player-actions-div')    
-    const playerIndex = stateObj.players.findIndex(player => player.name === "player") 
-    if (stateObj.currentBet === 0 && stateObj.publicCards.length > 0) {
-        playerActionsDiv.append(checkDiv, betDiv)
-    } else if (stateObj.players[playerIndex] == "BB" && stateObj.currentBet === 3) {
-        playerActionsDiv.append(checkDiv, RaiseDiv)
-    } else {
-        playerActionsDiv.append(foldDiv, callDiv, RaiseDiv)
-    }
 
     const playerSpellsDiv = createDiv('player-spells-div')
     const seeCardDiv = createSeeCardDiv(stateObj)
@@ -595,7 +625,8 @@ async function renderPokerTable(stateObj) {
     playerSpellsDiv.append(seeCardDiv, swapCardDiv, swapControlsDiv)
 
     const topDiv = createDiv("top-screenhalf-div")
-    topDiv.append(playerActionsDiv, playerSpellsDiv)
+    const unbelievabilityMeterDiv = createUnbelievabilityMeter(stateObj)
+    topDiv.append(playerSpellsDiv, unbelievabilityMeterDiv)
 
     tableDiv.append(publicCardsDiv, potDiv)
 

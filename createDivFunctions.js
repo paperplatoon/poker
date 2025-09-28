@@ -1,6 +1,6 @@
-seeHoleCardValue = 2;
+seeHoleCardValue = 4;
 swapHandCardWithDeckValue = 1;
-swapLowestCardWithOpponentValue = 4;
+swapLowestCardWithOpponentValue = 5;
 endOfTurnSuspicionDecreaseValue = 5;
 
 function createPlayerDiv(player, positionTop, positionLeft, cardFunctionString) {
@@ -208,15 +208,14 @@ function createBettingDiv(buttonString) {
 function createRaiseDiv(stateObj) {
     let RaiseDiv = document.createElement('div');
     RaiseDiv.classList.add('action-div', 'centered')
-    RaiseDiv.textContent = "Raise"
+    const betUnit = stateObj.publicCards.length >= 4 ? 4 : 2;
+    RaiseDiv.textContent = `Raise ${betUnit}`
     RaiseDiv.onclick = async function() {
         stateObj = {...state}
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-        const currentBet = stateObj.currentBet;
-        const targetBet = currentBet === 0 ? 3 : Math.max(currentBet * 3, currentBet + 3);
-        const roundedTarget = Math.ceil(targetBet);
-        stateObj = await putInBet(stateObj, playerIndex, roundedTarget)
-        console.log('player raised to ' + roundedTarget)
+        const targetBet = stateObj.currentBet + (stateObj.publicCards.length >= 4 ? 4 : 2);
+        stateObj = await putInBet(stateObj, playerIndex, targetBet)
+        console.log('player raised to ' + targetBet)
         stateObj = await nextPlayer(stateObj)
         stateObj = await actionOnPlayer(stateObj, false)
         if (stateObj.publicCards.length === 0) {
@@ -280,6 +279,36 @@ function createSwapPlayerCardDiv(stateObj) {
     return swapDiv
 }
 
+function createUnbelievabilityMeter(stateObj) {
+    const meterWrapper = createDiv('unbelievability-meter');
+    const labelDiv = createDiv('unbelievability-label', 'Unbelievability');
+    const stepsDiv = createDiv('unbelievability-steps');
+    const minLevel = (typeof MIN_UNBELIEVABILITY !== 'undefined') ? MIN_UNBELIEVABILITY : -2;
+    const maxLevel = (typeof MAX_UNBELIEVABILITY !== 'undefined') ? MAX_UNBELIEVABILITY : 4;
+    const boundedLevel = Math.max(minLevel, Math.min(maxLevel, stateObj.playerUnbelievability ?? 0));
+    const totalSteps = (maxLevel - minLevel) + 1;
+    const normalizedLevel = boundedLevel - minLevel;
+    for (let i = 0; i < totalSteps; i++) {
+        const stepDiv = createDiv('unbelievability-step');
+        if (i <= normalizedLevel) {
+            stepDiv.classList.add('filled');
+        }
+        stepsDiv.appendChild(stepDiv);
+    }
+    const labels = {
+        [-2]: 'Rock Solid',
+        [-1]: 'Reliable',
+        0: 'Steady',
+        1: 'Neutral',
+        2: 'Dubious',
+        3: 'Bluffy',
+        4: 'Unbelievable'
+    };
+    const statusDiv = createDiv('unbelievability-status', labels[boundedLevel] || 'Neutral');
+    meterWrapper.append(labelDiv, stepsDiv, statusDiv);
+    return meterWrapper;
+}
+
 function createCancelSwapDiv(stateObj) {
     if (stateObj.currentScreen !== "swapPlayerNPC" || !stateObj.selectedSwapTarget) {
         return null;
@@ -296,14 +325,14 @@ function createCancelSwapDiv(stateObj) {
 function createCallDiv(stateObj) {
     const callDiv = document.createElement('div');
     callDiv.classList.add('action-div', 'centered');
-    callDiv.textContent = "Call"
+    const playerIndex = stateObj.players.findIndex(player => player.name === "player");
+    const amountToCall = Math.max(0, stateObj.currentBet - stateObj.players[playerIndex].currentBet);
+    callDiv.textContent = amountToCall > 0 ? `Call ${amountToCall}` : "Call";
     callDiv.onclick = async function() {
         stateObj = {...state}
         console.log('clicked call div')
-        console.log("StateObj at onclick", stateObj);
         const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-        const moneyIn = stateObj.currentBet - stateObj.players[playerIndex].currentBet
-        stateObj = await putInBet(stateObj, playerIndex, moneyIn)
+        stateObj = await putInBet(stateObj, playerIndex, stateObj.currentBet)
         stateObj = await nextPlayer(stateObj)
         stateObj = await actionOnPlayer(stateObj, false)
         
@@ -320,13 +349,14 @@ function createCallDiv(stateObj) {
 function createBetDiv(stateObj) {
     const betDiv = document.createElement('div');
         betDiv.classList.add('action-div', 'centered')
-        betDiv.textContent = "Bet"
+        const betUnit = stateObj.publicCards.length >= 4 ? 4 : 2;
+        betDiv.textContent = `Bet ${betUnit}`
         betDiv.onclick = async function() {
             stateObj = {...state}
             console.log('clicked bet div')
             const playerIndex = stateObj.players.findIndex(player => player.name === "player");
-            const moneyIn = (stateObj.currentPot/2)
-            stateObj = await putInBet(stateObj, playerIndex, moneyIn)
+            const targetBet = stateObj.currentBet + (stateObj.publicCards.length >= 4 ? 4 : 2)
+            stateObj = await putInBet(stateObj, playerIndex, targetBet)
             stateObj = await nextPlayer(stateObj)
             stateObj = await actionOnPlayer(stateObj, false)
             await postFlopAction(stateObj)

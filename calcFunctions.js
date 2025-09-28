@@ -320,6 +320,58 @@ const seatPositions = [
     "CO"
   ]
 
+const MIN_UNBELIEVABILITY = -2;
+const MAX_UNBELIEVABILITY = 4;
+
+function clampUnbelievability(value) {
+    return Math.max(MIN_UNBELIEVABILITY, Math.min(MAX_UNBELIEVABILITY, value));
+}
+
+function getHighestPairRank(hand) {
+    const rankCounts = {};
+    hand.forEach(card => {
+        const rank = getCardRank(card);
+        rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+    });
+    let highestPair = null;
+    Object.entries(rankCounts).forEach(([rank, count]) => {
+        if (count >= 2) {
+            const parsedRank = Number(rank);
+            if (highestPair === null || parsedRank > highestPair) {
+                highestPair = parsedRank;
+            }
+        }
+    });
+    return highestPair;
+}
+
+function evaluatePlayerShowdownStrength(playerCards, publicCards) {
+    if (!playerCards || playerCards.length === 0) {
+        return null;
+    }
+    const combinedCards = playerCards.concat(publicCards || []);
+    if (combinedCards.length < 5) {
+        return null;
+    }
+    const [bestHand, bestRank] = getBestPokerHand(combinedCards);
+    if (bestRank >= 3) {
+        return "strong";
+    }
+    if (bestRank <= 1) {
+        return "weak";
+    }
+    if (bestRank === 2) {
+        const pairRank = getHighestPairRank(bestHand);
+        if (pairRank === null) {
+            return "weak";
+        }
+        const boardRanks = (publicCards || []).map(getCardRank);
+        const highestBoardRank = boardRanks.length ? Math.max(...boardRanks) : -Infinity;
+        return pairRank >= highestBoardRank ? "strong" : "weak";
+    }
+    return "weak";
+}
+
 //player at playerIndex has their .currentSeat property updated to the next in line
 async function moveToNextPlayer(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, (newState) => {
@@ -417,6 +469,14 @@ async function playerFolds(stateObj, playerIndex) {
 //need to 
 async function determineHandWinner(stateObj) {
     let playersStillInHand = stateObj.players.filter(player => player.isStillInHand);
+    const startingPlayerCount = playersStillInHand.length;
+    const playerObj = stateObj.players.find(player => player.name === "player");
+    const playerWasInHand = playerObj ? playerObj.isStillInHand : false;
+    const playerWasInShowdown = startingPlayerCount > 1 && playerWasInHand;
+    const playerShowdownStrength = playerWasInShowdown
+        ? evaluatePlayerShowdownStrength(playerObj.currentHand.slice(), stateObj.publicCards.slice())
+        : null;
+
     stateObj = immer.produce(stateObj, (newState) => {
         for (let i =0; i < playersStillInHand.length; i++) {
             const index = stateObj.players.findIndex(loopPlayer => loopPlayer.name === playersStillInHand[i].name)
@@ -444,7 +504,9 @@ async function determineHandWinner(stateObj) {
             }
         }
     }
-    const winnerIndex = stateObj.players.findIndex(player => player.name === playersStillInHand[0].name)
+    const showdownOccurred = startingPlayerCount > 1;
+    const winnerName = playersStillInHand.length ? playersStillInHand[0].name : null;
+    const winnerIndex = winnerName ? stateObj.players.findIndex(player => player.name === winnerName) : -1;
     const survivingNames = new Set(playersStillInHand.map(player => player.name));
     stateObj = immer.produce(stateObj, (newState) => {
         newState.players.forEach(player => {
@@ -452,14 +514,29 @@ async function determineHandWinner(stateObj) {
                 player.isStillInHand = false;
             }
         });
-        winnerStats =  getBestPokerHand(newState.players[winnerIndex].currentHand.concat(newState.publicCards))
-        newState.players[winnerIndex].stackSize += newState.currentPot
-        console.log (newState.players[winnerIndex].name + " wins " + newState.currentPot + " with " + winnerStats[0] )
+        if (winnerIndex !== -1) {
+            const winnerStats = getBestPokerHand(newState.players[winnerIndex].currentHand.concat(newState.publicCards));
+            newState.players[winnerIndex].stackSize += newState.currentPot
+            console.log (newState.players[winnerIndex].name + " wins " + newState.currentPot + " with " + winnerStats[0] )
+            if (winnerName === "player") {
+                if (!showdownOccurred) {
+                    newState.playerUnbelievability = clampUnbelievability(newState.playerUnbelievability + 1);
+                } else {
+                    newState.playerUnbelievability = clampUnbelievability(newState.playerUnbelievability - 2);
+                }
+            } else if (playerWasInShowdown && playerShowdownStrength === "weak") {
+                newState.playerUnbelievability = clampUnbelievability(newState.playerUnbelievability + 2);
+            }
+        }
         newState.currentPot = 0;
-        newState.currentPlayer = stateObj.players[winnerIndex].currentSeat
+        if (winnerIndex !== -1) {
+            newState.currentPlayer = stateObj.players[winnerIndex].currentSeat
+        }
     })
     await updateState(stateObj)
-    document.querySelectorAll(".playerDiv")[winnerIndex].classList.add("winner")
+    if (winnerIndex !== -1) {
+        document.querySelectorAll(".playerDiv")[winnerIndex].classList.add("winner")
+    }
     await pause(4000)
     return stateObj
 }
@@ -470,6 +547,9 @@ async function givePotToPlayer(stateObj, playerIndex) {
     stateObj = immer.produce(stateObj, (newState) => {
         newState.players[playerIndex].stackSize += newState.currentPot
         newState.currentPot = 0
+        if (newState.players[playerIndex].name === "player") {
+            newState.playerUnbelievability = clampUnbelievability(newState.playerUnbelievability + 1);
+        }
     })
     pause(1000)
     await updateState(stateObj)
